@@ -34,6 +34,26 @@ func Remove(name string) error {
 	return err
 }
 
+// MakeWritable recursively makes the named directory writable.
+func MakeWritable(name string) error {
+	return filepath.WalkDir(name, func(path string, d fs.DirEntry, err error) error {
+		// NB: this is called WalkDir but it works on a single file too
+		if err == nil {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+
+			// 0200 == u+w, in octal unix permission notation
+			err = os.Chmod(path, info.Mode()|0o200)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // RemoveAll removes the named file or directory with at most 5 attempts.
 func RemoveAll(name string) error {
 	var err error
@@ -46,22 +66,7 @@ func RemoveAll(name string) error {
 		// > (The only bad consequence of this is that rm -rf .git
 		// > doesn't work unless you first run chmod -R +w .git)
 
-		err = filepath.WalkDir(name, func(path string, d fs.DirEntry, err error) error {
-			// NB: this is called WalkDir but it works on a single file too
-			if err == nil {
-				info, err := d.Info()
-				if err != nil {
-					return err
-				}
-
-				// 0200 == u+w, in octal unix permission notation
-				err = os.Chmod(path, info.Mode()|0o200)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+		err = MakeWritable(name)
 		if err != nil {
 			// try again
 			<-time.After(100 * time.Millisecond)
