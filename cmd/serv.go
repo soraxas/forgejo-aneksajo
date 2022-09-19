@@ -223,8 +223,7 @@ func runServ(ctx context.Context, c *cli.Command) error {
 	}
 
 	if verb == gitAnnexShellVerb {
-		// if !setting.Annex.Enabled { // TODO: https://github.com/neuropoly/gitea/issues/8
-		if false {
+		if !setting.Annex.Enabled {
 			return fail(ctx, "Unknown git command", "git-annex request over SSH denied, git-annex support is disabled")
 		}
 

@@ -152,6 +152,7 @@ func loadCommonSettingsFrom(cfg ConfigProvider) error {
 	loadCamoFrom(cfg)
 	loadI18nFrom(cfg)
 	loadGitFrom(cfg)
+	loadAnnexFrom(cfg)
 	loadMirrorFrom(cfg)
 	loadMarkupFrom(cfg)
 	loadQuotaFrom(cfg)
