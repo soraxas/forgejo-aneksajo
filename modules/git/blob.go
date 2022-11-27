@@ -136,6 +136,10 @@ func (b *blobReader) Close() error {
 	return nil
 }
 
+func (b *Blob) Repo() *Repository {
+	return b.repo
+}
+
 // Name returns name of the tree entry this blob object was created from (or empty string)
 func (b *Blob) Name() string {
 	return b.name
