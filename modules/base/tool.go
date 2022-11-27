@@ -16,6 +16,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/git"
 	"forgejo.org/modules/log"
 
@@ -103,6 +104,12 @@ func Int64sToStrings(ints []int64) []string {
 func EntryIcon(entry *git.TreeEntry) string {
 	switch {
 	case entry.IsLink():
+		isAnnexed, _ := annex.IsAnnexed(entry.Blob())
+		if isAnnexed {
+			// git-annex files are sometimes stored as symlinks;
+			// short-circuit that so like LFS they are displayed as regular files
+			return "file"
+		}
 		te, _, err := entry.FollowLink()
 		if err != nil {
 			log.Debug(err.Error())

@@ -35,6 +35,7 @@ import (
 	unit_model "forgejo.org/models/unit"
 	user_model "forgejo.org/models/user"
 	"forgejo.org/modules/actions"
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/base"
 	"forgejo.org/modules/charset"
 	"forgejo.org/modules/git"
@@ -211,14 +212,47 @@ func localizedExtensions(ext, languageCode string) (localizedExts []string) {
 }
 
 type fileInfo struct {
-	isTextFile bool
-	isLFSFile  bool
-	fileSize   int64
-	lfsMeta    *lfs.Pointer
-	st         typesniffer.SniffedType
+	isTextFile  bool
+	isLFSFile   bool
+	isAnnexFile bool
+	fileSize    int64
+	lfsMeta     *lfs.Pointer
+	st          typesniffer.SniffedType
 }
 
 func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte, io.ReadCloser, *fileInfo, error) {
+	isAnnexed, err := annex.IsAnnexed(blob)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if isAnnexed {
+		// TODO: this code could be merged with the LFS case, especially the redundant type sniffer,
+		//       but it is *currently* written this way to make merging with the non-annex upstream easier:
+		//       this way, the git-annex patch is (mostly) pure additions.
+
+		annexContent, err := annex.Content(blob)
+		if err != nil {
+			// in the case where annex content is missing, what should happen?
+			// do we render the page with an error message?
+			// actually that's not a bad idea, there's some sort of error message situation
+			// TODO: display an error to the user explaining that their data is missing
+			return nil, nil, nil, err
+		}
+
+		stat, err := annexContent.Stat()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		buf := make([]byte, 1024)
+		n, _ := util.ReadAtMost(annexContent, buf)
+		buf = buf[:n]
+
+		st := typesniffer.DetectContentType(buf)
+
+		return buf, annexContent, &fileInfo{st.IsText(), false, true, stat.Size(), nil, st}, nil
+	}
+
 	dataRc, err := blob.DataAsync()
 	if err != nil {
 		return nil, nil, nil, err
@@ -233,18 +267,18 @@ func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte,
 
 	// FIXME: what happens when README file is an image?
 	if !isTextFile || !setting.LFS.StartServer {
-		return buf, dataRc, &fileInfo{isTextFile, false, blob.Size(), nil, st}, nil
+		return buf, dataRc, &fileInfo{isTextFile, false, false, blob.Size(), nil, st}, nil
 	}
 
 	pointer, _ := lfs.ReadPointerFromBuffer(buf)
 	if !pointer.IsValid() { // fallback to plain file
-		return buf, dataRc, &fileInfo{isTextFile, false, blob.Size(), nil, st}, nil
+		return buf, dataRc, &fileInfo{isTextFile, false, false, blob.Size(), nil, st}, nil
 	}
 
 	meta, err := git_model.GetLFSMetaObjectByOid(ctx, repoID, pointer.Oid)
 	if err != nil { // fallback to plain file
 		log.Warn("Unable to access LFS pointer %s in repo %d: %v", pointer.Oid, repoID, err)
-		return buf, dataRc, &fileInfo{isTextFile, false, blob.Size(), nil, st}, nil
+		return buf, dataRc, &fileInfo{isTextFile, false, false, blob.Size(), nil, st}, nil
 	}
 
 	dataRc.Close()
@@ -264,7 +298,7 @@ func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte,
 
 	st = typesniffer.DetectContentType(buf, blob.Name())
 
-	return buf, dataRc, &fileInfo{st.IsText(), true, meta.Size, &meta.Pointer, st}, nil
+	return buf, dataRc, &fileInfo{st.IsText(), true, false, meta.Size, &meta.Pointer, st}, nil
 }
 
 func renderReadmeFile(ctx *context.Context, subfolder string, readmeFile *git.TreeEntry) {
@@ -450,8 +484,15 @@ func renderFile(ctx *context.Context, entry *git.TreeEntry) {
 	isDisplayingSource := ctx.FormString("display") == "source"
 	isDisplayingRendered := !isDisplayingSource
 
-	if fInfo.isLFSFile {
+	if fInfo.isLFSFile || fInfo.isAnnexFile {
 		ctx.Data["RawFileLink"] = ctx.Repo.RepoLink + "/media/" + ctx.Repo.BranchNameSubURL() + "/" + util.PathEscapeSegments(ctx.Repo.TreePath)
+	}
+
+	if fInfo.isAnnexFile {
+		// pre-git-annex v7, all annexed files were represented in-repo as symlinks;
+		// but we pretend they aren't, since that's a distracting quirk of git-annex
+		// and not a meaningful choice on the user's part
+		ctx.Data["FileIsSymlink"] = false
 	}
 
 	isRepresentableAsText := fInfo.st.IsRepresentableAsText()
@@ -461,6 +502,7 @@ func renderFile(ctx *context.Context, entry *git.TreeEntry) {
 		isDisplayingRendered = true
 	}
 	ctx.Data["IsLFSFile"] = fInfo.isLFSFile
+	ctx.Data["IsAnnexFile"] = fInfo.isAnnexFile
 	ctx.Data["FileSize"] = fInfo.fileSize
 	ctx.Data["IsTextFile"] = fInfo.isTextFile
 	ctx.Data["IsRepresentableAsText"] = isRepresentableAsText
@@ -495,6 +537,8 @@ func renderFile(ctx *context.Context, entry *git.TreeEntry) {
 	// Assume file is not editable first.
 	if fInfo.isLFSFile {
 		ctx.Data["EditFileTooltip"] = ctx.Tr("repo.editor.cannot_edit_lfs_files")
+	} else if fInfo.isAnnexFile {
+		ctx.Data["EditFileTooltip"] = ctx.Tr("repo.editor.cannot_edit_annex_files")
 	} else if !isRepresentableAsText {
 		ctx.Data["EditFileTooltip"] = ctx.Tr("repo.editor.cannot_edit_non_text_files")
 	}
@@ -602,7 +646,7 @@ func renderFile(ctx *context.Context, entry *git.TreeEntry) {
 			ctx.Data["FileContent"] = fileContent
 			ctx.Data["LineEscapeStatus"] = statuses
 		}
-		if !fInfo.isLFSFile {
+		if !fInfo.isLFSFile && !fInfo.isAnnexFile {
 			if ctx.Repo.CanEnableEditor(ctx, ctx.Doer) {
 				if lfsLock != nil && lfsLock.OwnerID != ctx.Doer.ID {
 					ctx.Data["CanEditFile"] = false
