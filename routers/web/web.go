@@ -1697,8 +1697,8 @@ func registerRoutes(m *web.Route) {
 
 			m.Group("", func() {
 				// for git-annex
-				m.GetOptions("/config", repo.GetTextFile("config")) // needed by clients reading annex.uuid during `git annex initremote`
-				m.GetOptions("/annex/objects/{hash1}/{hash2}/{keyDir}/{key}", repo.GetAnnexObject)
+				m.Methods("GET,OPTIONS", "/config", repo.GetTextFile("config")) // needed by clients reading annex.uuid during `git annex initremote`
+				m.Methods("GET,OPTIONS", "/annex/objects/{hash1}/{hash2}/{keyDir}/{key}", repo.GetAnnexObject)
 			}, ignSignInAndCsrf, annexEnabled, context_service.UserAssignmentWeb())
 
 			gitHTTPRouters(m)
