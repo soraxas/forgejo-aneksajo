@@ -207,7 +207,7 @@ jobs:
       - name: install dependencies & git >= 2.42
         uses: ./.forgejo/workflows-composite/apt-install-from
         with:
-          packages: git git-annex git-lfs
+          packages: git git-annex-standalone git-lfs
       - uses: ./.forgejo/workflows-composite/build-backend
       - run: |
           su forgejo -c 'make test-mysql-migration test-mysql'
@@ -244,7 +244,7 @@ jobs:
       - name: install dependencies & git >= 2.42
         uses: ./.forgejo/workflows-composite/apt-install-from
         with:
-          packages: git git-annex git-lfs
+          packages: git git-annex-standalone git-lfs
       - uses: ./.forgejo/workflows-composite/build-backend
       - run: |
           su forgejo -c 'make test-pgsql-migration test-pgsql'
@@ -265,7 +265,7 @@ jobs:
       - name: install dependencies & git >= 2.42
         uses: ./.forgejo/workflows-composite/apt-install-from
         with:
-          packages: git git-annex git-lfs
+          packages: git git-annex-standalone git-lfs
       - uses: ./.forgejo/workflows-composite/build-backend
       - run: |
           su forgejo -c 'make test-sqlite-migration test-sqlite'

@@ -13,6 +13,8 @@ runs:
       run: |
         export DEBIAN_FRONTEND=noninteractive
         echo "deb http://deb.debian.org/debian/ ${RELEASE} main" > "/etc/apt/sources.list.d/${RELEASE}.list"
+        wget -O- http://neuro.debian.net/lists/bookworm.de-fzj.libre | tee /etc/apt/sources.list.d/neurodebian.sources.list
+        apt-key adv --recv-keys --keyserver hkps://keyserver.ubuntu.com 0xA5D32F012649A5A9
       env:
         RELEASE: ${{inputs.release}}
     - name: install packages
@@ -24,6 +26,7 @@ runs:
     - name: remove temporary package list to prevent using it in other steps
       run: |
         rm "/etc/apt/sources.list.d/${RELEASE}.list"
+        rm "/etc/apt/sources.list.d/neurodebian.sources.list"
         apt-get update -qq
       env:
         RELEASE: ${{inputs.release}}
