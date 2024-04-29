@@ -603,7 +603,7 @@ func GetAnnexObject(ctx *context.Context) {
 		// ref: https://git-annex.branchable.com/internals/hashing/
 
 		// keyDir should = key, but we don't enforce that
-		object := path.Join(ctx.Params("hash1"), ctx.Params("hash2"), ctx.Params("keyDir"), ctx.Params("key"))
+		object := filepath.Join(ctx.Params("hash1"), ctx.Params("hash2"), ctx.Params("keyDir"), ctx.Params("key"))
 
 		// Sanitize the input against directory traversals.
 		//
@@ -616,9 +616,9 @@ func GetAnnexObject(ctx *context.Context) {
 		// The router code probably also disallows "..", so this
 		// should be redundant, but it's defensive to keep it
 		// whenever touching filesystem paths with user input.
-		object = path.Join("/", object)[1:]
+		object = filepath.Join(string(filepath.Separator), object)[1:]
 
-		h.setHeaderCacheForever()
-		h.sendFile("application/octet-stream", "annex/objects/"+object)
+		setHeaderCacheForever(ctx)
+		h.sendFile(ctx, "application/octet-stream", "annex/objects/"+object)
 	}
 }
