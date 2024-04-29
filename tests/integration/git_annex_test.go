@@ -1067,7 +1067,7 @@ func withAnnexCtxHTTPPassword(t *testing.T, u *url.URL, ctx APITestContext, call
 	require.NoError(t, os.WriteFile(creds, []byte(credentialedURL.String()), 0o600))
 
 	originalCredentialHelper, _, err := git.NewCommandContextNoGlobals(git.DefaultContext, "config").AddOptionValues("--global", "credential.helper").RunStdString(&git.RunOpts{})
-	if err != nil && !err.IsExitCode(1) {
+	if err != nil && !git.IsErrorExitCode(err, 1) {
 		// ignore the 'error' thrown when credential.helper is unset (when git config returns 1)
 		// but catch all others
 		require.NoError(t, err)
