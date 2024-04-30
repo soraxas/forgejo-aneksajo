@@ -1699,7 +1699,7 @@ func registerRoutes(m *web.Route) {
 				// for git-annex
 				m.Methods("GET,OPTIONS", "/config", repo.GetTextFile("config")) // needed by clients reading annex.uuid during `git annex initremote`
 				m.Methods("GET,OPTIONS", "/annex/objects/{hash1}/{hash2}/{keyDir}/{key}", repo.GetAnnexObject)
-			}, ignSignInAndCsrf, annexEnabled, context_service.UserAssignmentWeb())
+			}, ignSignInAndCsrf, annexEnabled, context.UserAssignmentWeb())
 
 			gitHTTPRouters(m)
 		})
