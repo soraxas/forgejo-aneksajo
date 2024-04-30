@@ -522,7 +522,7 @@ func doAnnexDownloadTest(remoteRepoPath, repoPath string) (err error) {
 		return err
 	}
 
-	match, err := util.FileCmp(localObjectPath, remoteObjectPath, 0)
+	match, err := tests.FileCmp(localObjectPath, remoteObjectPath, 0)
 	if err != nil {
 		return err
 	}
@@ -575,7 +575,7 @@ func doAnnexUploadTest(remoteRepoPath, repoPath string) (err error) {
 		return err
 	}
 
-	match, err := util.FileCmp(localObjectPath, remoteObjectPath, 0)
+	match, err := tests.FileCmp(localObjectPath, remoteObjectPath, 0)
 	if err != nil {
 		return err
 	}
