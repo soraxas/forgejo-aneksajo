@@ -1012,6 +1012,7 @@ func contentLocation(repoPath, file string) (path string, err error) {
 	if err != nil {
 		return path, nil
 	}
+	defer repo.Close()
 
 	commitID, err := repo.GetRefCommitID("HEAD") // NB: to examine a *branch*, prefix with "refs/branch/", or call repo.GetBranchCommitID(); ditto for tags
 	if err != nil {
