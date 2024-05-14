@@ -113,7 +113,7 @@ func doAnnexMediaTest(t *testing.T, ctx APITestContext, file string) {
 	fd.Close()
 
 	// verify the download
-	match, err := util.FileCmp(localObjectPath, remoteObjectPath, 0)
+	match, err := tests.FileCmp(localObjectPath, remoteObjectPath, 0)
 	require.NoError(t, err)
 	require.True(t, match, "Annexed files should be the same")
 }
