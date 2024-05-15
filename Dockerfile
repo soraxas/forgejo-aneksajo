@@ -78,6 +78,7 @@ RUN apk --no-cache add \
     sqlite \
     su-exec \
     gnupg \
+    git-annex \
     && rm -rf /var/cache/apk/*
 
 RUN addgroup \
