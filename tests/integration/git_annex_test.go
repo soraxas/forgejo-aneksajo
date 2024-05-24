@@ -124,98 +124,100 @@ func TestGitAnnexViews(t *testing.T) {
 	}
 
 	onGiteaRun(t, func(t *testing.T, u *url.URL) {
-		ctx := NewAPITestContext(t, "user2", "annex-template-render-test", auth_model.AccessTokenScopeWriteRepository)
+		forEachObjectFormat(t, func(t *testing.T, objectFormat git.ObjectFormat) {
+			ctx := NewAPITestContext(t, "user2", "annex-template-render-test"+objectFormat.Name(), auth_model.AccessTokenScopeWriteRepository)
 
-		// create a public repo
-		require.NoError(t, doCreateRemoteAnnexRepository(t, u, ctx, false))
+			// create a public repo
+			require.NoError(t, doCreateRemoteAnnexRepository(t, u, ctx, false, objectFormat))
 
-		session := loginUser(t, ctx.Username)
+			session := loginUser(t, ctx.Username)
 
-		t.Run("Index", func(t *testing.T) {
-			// test that annex symlinks renders with the _file icon_ on the main list
-			defer tests.PrintCurrentTest(t)()
+			t.Run("Index", func(t *testing.T) {
+				// test that annex symlinks renders with the _file icon_ on the main list
+				defer tests.PrintCurrentTest(t)()
 
-			repoLink := path.Join("/", ctx.Username, ctx.Reponame)
-			req := NewRequest(t, "GET", repoLink)
-			resp := session.MakeRequest(t, req, http.StatusOK)
-
-			htmlDoc := NewHTMLParser(t, resp.Body)
-			isFileIcon := htmlDoc.Find("tr[data-entryname='annexed.tiff'] > td.name svg").HasClass("octicon-file")
-			require.True(t, isFileIcon, "annexed files should render a plain file icon, even when stored via annex symlink")
-		})
-
-		t.Run("View", func(t *testing.T) {
-			// test how routers/web/repo/view.go + templates/repo/view_file.tmpl handle annexed files
-			defer tests.PrintCurrentTest(t)()
-
-			doViewTest := func(file string) (htmlDoc *HTMLDoc, viewLink, mediaLink string) {
-				viewLink = path.Join("/", ctx.Username, ctx.Reponame, "/src/branch/master", file)
-				// rawLink := strings.Replace(viewLink, "/src/", "/raw/", 1) // TODO: do something with this?
-				mediaLink = strings.Replace(viewLink, "/src/", "/media/", 1)
-
-				req := NewRequest(t, "GET", viewLink)
+				repoLink := path.Join("/", ctx.Username, ctx.Reponame)
+				req := NewRequest(t, "GET", repoLink)
 				resp := session.MakeRequest(t, req, http.StatusOK)
 
-				htmlDoc = NewHTMLParser(t, resp.Body)
-				// the first button on the toolbar on the view template is the "Raw" button
-				// this CSS selector is the most precise I can think to use
-				buttonLink, exists := htmlDoc.Find(".file-header").Find("a[download]").Attr("href")
-				require.True(t, exists, "Download button should exist on the file header")
-				require.EqualValues(t, mediaLink, buttonLink, "Download link should use /media URL for annex files")
-
-				return htmlDoc, viewLink, mediaLink
-			}
-
-			t.Run("Binary", func(t *testing.T) {
-				// test that annexing a file renders the /media link in /src and NOT the /raw link
-				defer tests.PrintCurrentTest(t)()
-
-				doBinaryViewTest := func(file string) {
-					htmlDoc, _, mediaLink := doViewTest(file)
-
-					rawLink, exists := htmlDoc.Find("div.file-view > div.view-raw > a").Attr("href")
-					require.True(t, exists, "Download link should render instead of content because this is a binary file")
-					require.EqualValues(t, mediaLink, rawLink)
-				}
-
-				t.Run("AnnexSymlink", func(t *testing.T) {
-					defer tests.PrintCurrentTest(t)()
-					doBinaryViewTest("annexed.tiff")
-				})
-				t.Run("AnnexPointer", func(t *testing.T) {
-					defer tests.PrintCurrentTest(t)()
-					doBinaryViewTest("annexed.bin")
-				})
+				htmlDoc := NewHTMLParser(t, resp.Body)
+				isFileIcon := htmlDoc.Find("tr[data-entryname='annexed.tiff'] > td.name svg").HasClass("octicon-file")
+				require.True(t, isFileIcon, "annexed files should render a plain file icon, even when stored via annex symlink")
 			})
 
-			t.Run("Text", func(t *testing.T) {
+			t.Run("View", func(t *testing.T) {
+				// test how routers/web/repo/view.go + templates/repo/view_file.tmpl handle annexed files
 				defer tests.PrintCurrentTest(t)()
 
-				doTextViewTest := func(file string) {
-					htmlDoc, _, _ := doViewTest(file)
-					require.True(t, htmlDoc.Find("div.file-view").Is(".code-view"), "should render as code")
+				doViewTest := func(file string) (htmlDoc *HTMLDoc, viewLink, mediaLink string) {
+					viewLink = path.Join("/", ctx.Username, ctx.Reponame, "/src/branch/master", file)
+					// rawLink := strings.Replace(viewLink, "/src/", "/raw/", 1) // TODO: do something with this?
+					mediaLink = strings.Replace(viewLink, "/src/", "/media/", 1)
+
+					req := NewRequest(t, "GET", viewLink)
+					resp := session.MakeRequest(t, req, http.StatusOK)
+
+					htmlDoc = NewHTMLParser(t, resp.Body)
+					// the first button on the toolbar on the view template is the "Raw" button
+					// this CSS selector is the most precise I can think to use
+					buttonLink, exists := htmlDoc.Find(".file-header").Find("a[download]").Attr("href")
+					require.True(t, exists, "Download button should exist on the file header")
+					require.EqualValues(t, mediaLink, buttonLink, "Download link should use /media URL for annex files")
+
+					return htmlDoc, viewLink, mediaLink
 				}
 
-				t.Run("AnnexSymlink", func(t *testing.T) {
+				t.Run("Binary", func(t *testing.T) {
+					// test that annexing a file renders the /media link in /src and NOT the /raw link
 					defer tests.PrintCurrentTest(t)()
-					doTextViewTest("annexed.txt")
 
-					t.Run("Markdown", func(t *testing.T) {
-						// special case: check that markdown can be pulled out of the annex and rendered, too
+					doBinaryViewTest := func(file string) {
+						htmlDoc, _, mediaLink := doViewTest(file)
+
+						rawLink, exists := htmlDoc.Find("div.file-view > div.view-raw > a").Attr("href")
+						require.True(t, exists, "Download link should render instead of content because this is a binary file")
+						require.EqualValues(t, mediaLink, rawLink)
+					}
+
+					t.Run("AnnexSymlink", func(t *testing.T) {
 						defer tests.PrintCurrentTest(t)()
-						htmlDoc, _, _ := doViewTest("annexed.md")
-						require.True(t, htmlDoc.Find("div.file-view").Is(".markdown"), "should render as markdown")
+						doBinaryViewTest("annexed.tiff")
+					})
+					t.Run("AnnexPointer", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
+						doBinaryViewTest("annexed.bin")
 					})
 				})
-				t.Run("AnnexPointer", func(t *testing.T) {
-					defer tests.PrintCurrentTest(t)()
-					doTextViewTest("annexed.rst")
 
-					t.Run("Markdown", func(t *testing.T) {
-						// special case: check that markdown can be pulled out of the annex and rendered, too
+				t.Run("Text", func(t *testing.T) {
+					defer tests.PrintCurrentTest(t)()
+
+					doTextViewTest := func(file string) {
+						htmlDoc, _, _ := doViewTest(file)
+						require.True(t, htmlDoc.Find("div.file-view").Is(".code-view"), "should render as code")
+					}
+
+					t.Run("AnnexSymlink", func(t *testing.T) {
 						defer tests.PrintCurrentTest(t)()
-						htmlDoc, _, _ := doViewTest("annexed.markdown")
-						require.True(t, htmlDoc.Find("div.file-view").Is(".markdown"), "should render as markdown")
+						doTextViewTest("annexed.txt")
+
+						t.Run("Markdown", func(t *testing.T) {
+							// special case: check that markdown can be pulled out of the annex and rendered, too
+							defer tests.PrintCurrentTest(t)()
+							htmlDoc, _, _ := doViewTest("annexed.md")
+							require.True(t, htmlDoc.Find("div.file-view").Is(".markdown"), "should render as markdown")
+						})
+					})
+					t.Run("AnnexPointer", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
+						doTextViewTest("annexed.rst")
+
+						t.Run("Markdown", func(t *testing.T) {
+							// special case: check that markdown can be pulled out of the annex and rendered, too
+							defer tests.PrintCurrentTest(t)()
+							htmlDoc, _, _ := doViewTest("annexed.markdown")
+							require.True(t, htmlDoc.Find("div.file-view").Is(".markdown"), "should render as markdown")
+						})
 					})
 				})
 			})
