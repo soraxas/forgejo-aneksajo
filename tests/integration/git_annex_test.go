@@ -34,13 +34,13 @@ import (
 //   which is assumed to be owned by that username; if you want to target a different
 //   repo, you need to edit its .Reponame or just ignore it and write "username/reponame.git"
 
-func doCreateRemoteAnnexRepository(t *testing.T, u *url.URL, ctx APITestContext, private bool) (err error) {
+func doCreateRemoteAnnexRepository(t *testing.T, u *url.URL, ctx APITestContext, private bool, objectFormat git.ObjectFormat) (err error) {
 	// creating a repo counts as editing the user's profile (is done by POSTing
 	// to /api/v1/user/repos/) -- which means it needs a User-scoped token and
 	// both that and editing need a Repo-scoped token because they edit repositories.
 	rescopedCtx := ctx
 	rescopedCtx.Token = getTokenForLoggedInUser(t, ctx.Session, auth_model.AccessTokenScopeWriteUser, auth_model.AccessTokenScopeWriteRepository)
-	doAPICreateRepository(rescopedCtx, false)(t)
+	doAPICreateRepository(rescopedCtx, nil, objectFormat)(t)
 	t.Cleanup(func() { util.MakeWritable(setting.RepoRootPath) })
 	doAPIEditRepository(rescopedCtx, &api.EditRepoOption{Private: &private})(t)
 
@@ -78,365 +78,367 @@ func TestGitAnnexPermissions(t *testing.T) {
 	// 'annex copy' -- potentially leaving a security gap.
 
 	onGiteaRun(t, func(t *testing.T, u *url.URL) {
-		t.Run("Public", func(t *testing.T) {
-			defer tests.PrintCurrentTest(t)()
-
-			ownerCtx := NewAPITestContext(t, "user2", "annex-public", auth_model.AccessTokenScopeWriteRepository)
-
-			// create a public repo
-			require.NoError(t, doCreateRemoteAnnexRepository(t, u, ownerCtx, false))
-
-			// double-check it's public
-			repo, err := repo_model.GetRepositoryByOwnerAndName(db.DefaultContext, ownerCtx.Username, ownerCtx.Reponame)
-			require.NoError(t, err)
-			require.False(t, repo.IsPrivate)
-
-			// Remote addresses of the repo
-			repoURL := createSSHUrl(ownerCtx.GitPath(), u)                        // remote git URL
-			remoteRepoPath := path.Join(setting.RepoRootPath, ownerCtx.GitPath()) // path on disk -- which can be examined directly because we're testing from localhost
-
-			// Different sessions, so we can test different permissions.
-			// We leave Reponame blank because we don't actually then later add it according to each case if needed
-			//
-			// NB: these usernames need to match appropriate entries in models/fixtures/user.yml
-			writerCtx := NewAPITestContext(t, "user5", "", auth_model.AccessTokenScopeWriteRepository)
-			readerCtx := NewAPITestContext(t, "user4", "", auth_model.AccessTokenScopeReadRepository)
-			outsiderCtx := NewAPITestContext(t, "user8", "", auth_model.AccessTokenScopeReadRepository) // a user with no specific access
-
-			// set up collaborators
-			doAPIAddCollaborator(ownerCtx, readerCtx.Username, perm.AccessModeRead)(t)
-			doAPIAddCollaborator(ownerCtx, writerCtx.Username, perm.AccessModeWrite)(t)
-
-			// tests
-			t.Run("Owner", func(t *testing.T) {
+		forEachObjectFormat(t, func(t *testing.T, objectFormat git.ObjectFormat) {
+			t.Run("Public", func(t *testing.T) {
 				defer tests.PrintCurrentTest(t)()
 
-				t.Run("SSH", func(t *testing.T) {
+				ownerCtx := NewAPITestContext(t, "user2", "annex-public"+objectFormat.Name(), auth_model.AccessTokenScopeWriteRepository)
+
+				// create a public repo
+				require.NoError(t, doCreateRemoteAnnexRepository(t, u, ownerCtx, false, objectFormat))
+
+				// double-check it's public
+				repo, err := repo_model.GetRepositoryByOwnerAndName(db.DefaultContext, ownerCtx.Username, ownerCtx.Reponame)
+				require.NoError(t, err)
+				require.False(t, repo.IsPrivate)
+
+				// Remote addresses of the repo
+				repoURL := createSSHUrl(ownerCtx.GitPath(), u)                        // remote git URL
+				remoteRepoPath := path.Join(setting.RepoRootPath, ownerCtx.GitPath()) // path on disk -- which can be examined directly because we're testing from localhost
+
+				// Different sessions, so we can test different permissions.
+				// We leave Reponame blank because we don't actually then later add it according to each case if needed
+				//
+				// NB: these usernames need to match appropriate entries in models/fixtures/user.yml
+				writerCtx := NewAPITestContext(t, "user5", "", auth_model.AccessTokenScopeWriteRepository)
+				readerCtx := NewAPITestContext(t, "user4", "", auth_model.AccessTokenScopeReadRepository)
+				outsiderCtx := NewAPITestContext(t, "user8", "", auth_model.AccessTokenScopeReadRepository) // a user with no specific access
+
+				// set up collaborators
+				doAPIAddCollaborator(ownerCtx, readerCtx.Username, perm.AccessModeRead)(t)
+				doAPIAddCollaborator(ownerCtx, writerCtx.Username, perm.AccessModeWrite)(t)
+
+				// tests
+				t.Run("Owner", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
-					repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
-					defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
+					t.Run("SSH", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
 
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						doGitClone(repoPath, repoURL)(t)
-					})
+						repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
+						defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
 
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						t.Run("Init", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							doGitClone(repoPath, repoURL)(t)
 						})
 
-						t.Run("Download", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							t.Run("Init", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
-						})
+								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+							})
 
-						t.Run("Upload", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+							t.Run("Download", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+
+							t.Run("Upload", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
 						})
 					})
 				})
-			})
 
-			t.Run("Writer", func(t *testing.T) {
-				defer tests.PrintCurrentTest(t)()
-
-				t.Run("SSH", func(t *testing.T) {
+				t.Run("Writer", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
-					repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
-					defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
+					t.Run("SSH", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
 
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						doGitClone(repoPath, repoURL)(t)
-					})
+						repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
+						defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
 
-					withAnnexCtxKeyFile(t, writerCtx, func() {
-						t.Run("Init", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							doGitClone(repoPath, repoURL)(t)
 						})
 
-						t.Run("Download", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+						withAnnexCtxKeyFile(t, writerCtx, func() {
+							t.Run("Init", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
-						})
+								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+							})
 
-						t.Run("Upload", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+							t.Run("Download", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+
+							t.Run("Upload", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
 						})
 					})
 				})
-			})
 
-			t.Run("Reader", func(t *testing.T) {
-				defer tests.PrintCurrentTest(t)()
-
-				t.Run("SSH", func(t *testing.T) {
+				t.Run("Reader", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
-					repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
-					defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
+					t.Run("SSH", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
 
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						doGitClone(repoPath, repoURL)(t)
-					})
+						repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
+						defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
 
-					withAnnexCtxKeyFile(t, readerCtx, func() {
-						t.Run("Init", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							doGitClone(repoPath, repoURL)(t)
 						})
 
-						t.Run("Download", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+						withAnnexCtxKeyFile(t, readerCtx, func() {
+							t.Run("Init", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
-						})
+								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+							})
 
-						t.Run("Upload", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+							t.Run("Download", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+
+							t.Run("Upload", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+							})
 						})
 					})
 				})
-			})
 
-			t.Run("Outsider", func(t *testing.T) {
-				defer tests.PrintCurrentTest(t)()
-
-				t.Run("SSH", func(t *testing.T) {
+				t.Run("Outsider", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
-					repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
-					defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
+					t.Run("SSH", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
 
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						doGitClone(repoPath, repoURL)(t)
-					})
+						repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
+						defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
 
-					withAnnexCtxKeyFile(t, outsiderCtx, func() {
-						t.Run("Init", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							doGitClone(repoPath, repoURL)(t)
 						})
 
-						t.Run("Download", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+						withAnnexCtxKeyFile(t, outsiderCtx, func() {
+							t.Run("Init", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
-						})
+								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+							})
 
-						t.Run("Upload", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+							t.Run("Download", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+
+							t.Run("Upload", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+							})
 						})
 					})
 				})
-			})
 
-			t.Run("Delete", func(t *testing.T) {
-				defer tests.PrintCurrentTest(t)()
-
-				// Delete the repo, make sure it's fully gone
-				doAPIDeleteRepository(ownerCtx)(t)
-				_, statErr := os.Stat(remoteRepoPath)
-				require.True(t, os.IsNotExist(statErr), "Remote annex repo should be removed from disk")
-			})
-		})
-
-		t.Run("Private", func(t *testing.T) {
-			defer tests.PrintCurrentTest(t)()
-
-			ownerCtx := NewAPITestContext(t, "user2", "annex-private", auth_model.AccessTokenScopeWriteRepository)
-
-			// create a private repo
-			require.NoError(t, doCreateRemoteAnnexRepository(t, u, ownerCtx, true))
-
-			// double-check it's private
-			repo, err := repo_model.GetRepositoryByOwnerAndName(db.DefaultContext, ownerCtx.Username, ownerCtx.Reponame)
-			require.NoError(t, err)
-			require.True(t, repo.IsPrivate)
-
-			// Remote addresses of the repo
-			repoURL := createSSHUrl(ownerCtx.GitPath(), u)                        // remote git URL
-			remoteRepoPath := path.Join(setting.RepoRootPath, ownerCtx.GitPath()) // path on disk -- which can be examined directly because we're testing from localhost
-
-			// Different sessions, so we can test different permissions.
-			// We leave Reponame blank because we don't actually then later add it according to each case if needed
-			//
-			// NB: these usernames need to match appropriate entries in models/fixtures/user.yml
-			writerCtx := NewAPITestContext(t, "user5", "", auth_model.AccessTokenScopeWriteRepository)
-			readerCtx := NewAPITestContext(t, "user4", "", auth_model.AccessTokenScopeReadRepository)
-			outsiderCtx := NewAPITestContext(t, "user8", "", auth_model.AccessTokenScopeReadRepository) // a user with no specific access
-			// Note: there's also full anonymous access, which is only available for public HTTP repos;
-			// it should behave the same as 'outsider' but we (will) test it separately below anyway
-
-			// set up collaborators
-			doAPIAddCollaborator(ownerCtx, readerCtx.Username, perm.AccessModeRead)(t)
-			doAPIAddCollaborator(ownerCtx, writerCtx.Username, perm.AccessModeWrite)(t)
-
-			// tests
-			t.Run("Owner", func(t *testing.T) {
-				defer tests.PrintCurrentTest(t)()
-
-				t.Run("SSH", func(t *testing.T) {
+				t.Run("Delete", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
-					repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
-					defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
-
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						doGitClone(repoPath, repoURL)(t)
-					})
-
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						t.Run("Init", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
-						})
-
-						t.Run("Download", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
-						})
-
-						t.Run("Upload", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
-						})
-					})
+					// Delete the repo, make sure it's fully gone
+					doAPIDeleteRepository(ownerCtx)(t)
+					_, statErr := os.Stat(remoteRepoPath)
+					require.True(t, os.IsNotExist(statErr), "Remote annex repo should be removed from disk")
 				})
 			})
 
-			t.Run("Writer", func(t *testing.T) {
+			t.Run("Private", func(t *testing.T) {
 				defer tests.PrintCurrentTest(t)()
 
-				t.Run("SSH", func(t *testing.T) {
+				ownerCtx := NewAPITestContext(t, "user2", "annex-private"+objectFormat.Name(), auth_model.AccessTokenScopeWriteRepository)
+
+				// create a private repo
+				require.NoError(t, doCreateRemoteAnnexRepository(t, u, ownerCtx, true, objectFormat))
+
+				// double-check it's private
+				repo, err := repo_model.GetRepositoryByOwnerAndName(db.DefaultContext, ownerCtx.Username, ownerCtx.Reponame)
+				require.NoError(t, err)
+				require.True(t, repo.IsPrivate)
+
+				// Remote addresses of the repo
+				repoURL := createSSHUrl(ownerCtx.GitPath(), u)                        // remote git URL
+				remoteRepoPath := path.Join(setting.RepoRootPath, ownerCtx.GitPath()) // path on disk -- which can be examined directly because we're testing from localhost
+
+				// Different sessions, so we can test different permissions.
+				// We leave Reponame blank because we don't actually then later add it according to each case if needed
+				//
+				// NB: these usernames need to match appropriate entries in models/fixtures/user.yml
+				writerCtx := NewAPITestContext(t, "user5", "", auth_model.AccessTokenScopeWriteRepository)
+				readerCtx := NewAPITestContext(t, "user4", "", auth_model.AccessTokenScopeReadRepository)
+				outsiderCtx := NewAPITestContext(t, "user8", "", auth_model.AccessTokenScopeReadRepository) // a user with no specific access
+				// Note: there's also full anonymous access, which is only available for public HTTP repos;
+				// it should behave the same as 'outsider' but we (will) test it separately below anyway
+
+				// set up collaborators
+				doAPIAddCollaborator(ownerCtx, readerCtx.Username, perm.AccessModeRead)(t)
+				doAPIAddCollaborator(ownerCtx, writerCtx.Username, perm.AccessModeWrite)(t)
+
+				// tests
+				t.Run("Owner", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
-					repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
-					defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
+					t.Run("SSH", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
 
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						doGitClone(repoPath, repoURL)(t)
-					})
+						repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
+						defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
 
-					withAnnexCtxKeyFile(t, writerCtx, func() {
-						t.Run("Init", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							doGitClone(repoPath, repoURL)(t)
 						})
 
-						t.Run("Download", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							t.Run("Init", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
-						})
+								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+							})
 
-						t.Run("Upload", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+							t.Run("Download", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+
+							t.Run("Upload", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
 						})
 					})
 				})
-			})
 
-			t.Run("Reader", func(t *testing.T) {
-				defer tests.PrintCurrentTest(t)()
-
-				t.Run("SSH", func(t *testing.T) {
+				t.Run("Writer", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
-					repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
-					defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
+					t.Run("SSH", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
 
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						doGitClone(repoPath, repoURL)(t)
-					})
+						repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
+						defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
 
-					withAnnexCtxKeyFile(t, readerCtx, func() {
-						t.Run("Init", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							doGitClone(repoPath, repoURL)(t)
 						})
 
-						t.Run("Download", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+						withAnnexCtxKeyFile(t, writerCtx, func() {
+							t.Run("Init", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
-						})
+								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+							})
 
-						t.Run("Upload", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+							t.Run("Download", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+
+							t.Run("Upload", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
 						})
 					})
 				})
-			})
 
-			t.Run("Outsider", func(t *testing.T) {
-				defer tests.PrintCurrentTest(t)()
-
-				t.Run("SSH", func(t *testing.T) {
+				t.Run("Reader", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
-					repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
-					defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
+					t.Run("SSH", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
 
-					withAnnexCtxKeyFile(t, ownerCtx, func() {
-						doGitClone(repoPath, repoURL)(t)
-					})
+						repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
+						defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
 
-					withAnnexCtxKeyFile(t, outsiderCtx, func() {
-						t.Run("Init", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
-
-							require.Error(t, doAnnexInitTest(remoteRepoPath, repoPath), "annex init should fail due to permissions")
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							doGitClone(repoPath, repoURL)(t)
 						})
 
-						t.Run("Download", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+						withAnnexCtxKeyFile(t, readerCtx, func() {
+							t.Run("Init", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.Error(t, doAnnexDownloadTest(remoteRepoPath, repoPath), "annex copy --from should fail due to permissions")
-						})
+								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
+							})
 
-						t.Run("Upload", func(t *testing.T) {
-							defer tests.PrintCurrentTest(t)()
+							t.Run("Download", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
 
-							require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "annex copy --to should fail due to permissions")
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+
+							t.Run("Upload", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+							})
 						})
 					})
 				})
-			})
 
-			t.Run("Delete", func(t *testing.T) {
-				defer tests.PrintCurrentTest(t)()
+				t.Run("Outsider", func(t *testing.T) {
+					defer tests.PrintCurrentTest(t)()
 
-				// Delete the repo, make sure it's fully gone
-				doAPIDeleteRepository(ownerCtx)(t)
-				_, statErr := os.Stat(remoteRepoPath)
-				require.True(t, os.IsNotExist(statErr), "Remote annex repo should be removed from disk")
+					t.Run("SSH", func(t *testing.T) {
+						defer tests.PrintCurrentTest(t)()
+
+						repoPath := path.Join(t.TempDir(), ownerCtx.Reponame)
+						defer util.RemoveAll(repoPath) // cleans out git-annex lockdown permissions
+
+						withAnnexCtxKeyFile(t, ownerCtx, func() {
+							doGitClone(repoPath, repoURL)(t)
+						})
+
+						withAnnexCtxKeyFile(t, outsiderCtx, func() {
+							t.Run("Init", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.Error(t, doAnnexInitTest(remoteRepoPath, repoPath), "annex init should fail due to permissions")
+							})
+
+							t.Run("Download", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.Error(t, doAnnexDownloadTest(remoteRepoPath, repoPath), "annex copy --from should fail due to permissions")
+							})
+
+							t.Run("Upload", func(t *testing.T) {
+								defer tests.PrintCurrentTest(t)()
+
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "annex copy --to should fail due to permissions")
+							})
+						})
+					})
+				})
+
+				t.Run("Delete", func(t *testing.T) {
+					defer tests.PrintCurrentTest(t)()
+
+					// Delete the repo, make sure it's fully gone
+					doAPIDeleteRepository(ownerCtx)(t)
+					_, statErr := os.Stat(remoteRepoPath)
+					require.True(t, os.IsNotExist(statErr), "Remote annex repo should be removed from disk")
+				})
 			})
 		})
 	})
