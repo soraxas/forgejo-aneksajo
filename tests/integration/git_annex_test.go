@@ -65,19 +65,21 @@ func TestGitAnnexMedia(t *testing.T) {
 	}
 
 	onGiteaRun(t, func(t *testing.T, u *url.URL) {
-		ctx := NewAPITestContext(t, "user2", "annex-media-test", auth_model.AccessTokenScopeWriteRepository)
+		forEachObjectFormat(t, func(t *testing.T, objectFormat git.ObjectFormat) {
+			ctx := NewAPITestContext(t, "user2", "annex-media-test"+objectFormat.Name(), auth_model.AccessTokenScopeWriteRepository)
 
-		// create a public repo
-		require.NoError(t, doCreateRemoteAnnexRepository(t, u, ctx, false))
+			// create a public repo
+			require.NoError(t, doCreateRemoteAnnexRepository(t, u, ctx, false, objectFormat))
 
-		// the filenames here correspond to specific cases defined in doInitAnnexRepository()
-		t.Run("AnnexSymlink", func(t *testing.T) {
-			defer tests.PrintCurrentTest(t)()
-			doAnnexMediaTest(t, ctx, "annexed.tiff")
-		})
-		t.Run("AnnexPointer", func(t *testing.T) {
-			defer tests.PrintCurrentTest(t)()
-			doAnnexMediaTest(t, ctx, "annexed.bin")
+			// the filenames here correspond to specific cases defined in doInitAnnexRepository()
+			t.Run("AnnexSymlink", func(t *testing.T) {
+				defer tests.PrintCurrentTest(t)()
+				doAnnexMediaTest(t, ctx, "annexed.tiff")
+			})
+			t.Run("AnnexPointer", func(t *testing.T) {
+				defer tests.PrintCurrentTest(t)()
+				doAnnexMediaTest(t, ctx, "annexed.bin")
+			})
 		})
 	})
 }
