@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -255,6 +256,12 @@ func runWeb(ctx context.Context, cli *cli.Command) error {
 	// Set pid file setting
 	if cli.IsSet("pid") {
 		createPIDFile(cli.String("pid"))
+	}
+
+	if setting.Annex.Enabled {
+		if _, err := exec.LookPath("git-annex"); err != nil {
+			log.Fatal("You have enabled git-annex support but git-annex is not installed. Please make sure that Forgejo's PATH contains the git-annex executable.")
+		}
 	}
 
 	if !setting.InstallLock {
