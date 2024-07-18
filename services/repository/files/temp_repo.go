@@ -203,6 +203,26 @@ func (t *TemporaryUploadRepository) AddObjectToIndex(mode, objectHash, objectPat
 	return nil
 }
 
+// InitPrivateAnnex initializes a private annex in the repository
+func (t *TemporaryUploadRepository) InitPrivateAnnex() error {
+	if _, _, err := git.NewCommand(t.ctx, "config", "annex.private", "true").RunStdString(&git.RunOpts{Dir: t.basePath}); err != nil {
+		return err
+	}
+	if _, _, err := git.NewCommand(t.ctx, "annex", "init").RunStdString(&git.RunOpts{Dir: t.basePath}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// AddAnnex adds the file at path to the repository using git annex add
+// This requires a non-bare repository
+func (t *TemporaryUploadRepository) AddAnnex(path string) error {
+	if _, _, err := git.NewCommand(t.ctx, "annex", "add").AddDynamicArguments(path).RunStdString(&git.RunOpts{Dir: t.basePath}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // WriteTree writes the current index as a tree to the object db and returns its hash
 func (t *TemporaryUploadRepository) WriteTree() (string, error) {
 	stdout, _, err := git.NewCommand(t.ctx, "write-tree").RunStdString(&git.RunOpts{Dir: t.basePath})

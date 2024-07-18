@@ -44,10 +44,13 @@ func MakeWritable(name string) error {
 				return err
 			}
 
-			// 0200 == u+w, in octal unix permission notation
-			err = os.Chmod(path, info.Mode()|0o200)
-			if err != nil {
-				return err
+			// Don't try chmod'ing symlinks (will fail with broken symlinks)
+			if info.Mode()&os.ModeSymlink != os.ModeSymlink {
+				// 0200 == u+w, in octal unix permission notation
+				err = os.Chmod(path, info.Mode()|0o200)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		return nil

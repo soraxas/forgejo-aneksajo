@@ -6,13 +6,16 @@ package files
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	git_model "forgejo.org/models/git"
 	repo_model "forgejo.org/models/repo"
 	user_model "forgejo.org/models/user"
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/git"
 	"forgejo.org/modules/lfs"
 	"forgejo.org/modules/setting"
@@ -89,7 +92,7 @@ func UploadRepoFiles(ctx context.Context, repo *repo_model.Repository, doer *use
 	defer t.Close()
 
 	hasOldBranch := true
-	if err = t.Clone(opts.OldBranch, true); err != nil {
+	if err = t.Clone(opts.OldBranch, false); err != nil {
 		if !git.IsErrBranchNotExist(err) || !repo.IsEmpty {
 			return err
 		}
@@ -105,9 +108,29 @@ func UploadRepoFiles(ctx context.Context, repo *repo_model.Repository, doer *use
 		}
 	}
 
-	// Copy uploaded files into repository.
-	if err := copyUploadedLFSFilesIntoRepository(infos, t, opts.TreePath); err != nil {
+	r, err := git.OpenRepository(ctx, repo.RepoPath())
+	if err != nil {
 		return err
+	}
+	if annex.IsAnnexRepo(r) {
+		// Initialize annex privately in temporary clone
+		if err := t.InitPrivateAnnex(); err != nil {
+			return err
+		}
+		// Copy uploaded files into git-annex repository
+		if err := copyUploadedFilesIntoAnnexRepository(infos, t, opts.TreePath); err != nil {
+			return err
+		}
+		// Move all annexed content in the temporary repository, i.e. everything we have just added, to the origin
+		author, committer := GetAuthorAndCommitterUsers(opts.Author, opts.Committer, doer)
+		if err := moveAnnexedFilesToOrigin(t, author, committer); err != nil {
+			return err
+		}
+	} else {
+		// Copy uploaded files into repository.
+		if err := copyUploadedLFSFilesIntoRepository(infos, t, opts.TreePath); err != nil {
+			return err
+		}
 	}
 
 	// Now write the tree
@@ -243,6 +266,60 @@ func uploadToLFSContentStore(info uploadInfo, contentStore *lfs.ContentStore) er
 			// Can't clean up the store, once uploaded there they're there.
 			return err
 		}
+	}
+	return nil
+}
+
+func copyUploadedFilesIntoAnnexRepository(infos []uploadInfo, t *TemporaryUploadRepository, treePath string) error {
+	for i := range len(infos) {
+		if err := copyUploadedFileIntoAnnexRepository(&infos[i], t, treePath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyUploadedFileIntoAnnexRepository(info *uploadInfo, t *TemporaryUploadRepository, treePath string) error {
+	pathInRepo := path.Join(t.basePath, treePath, info.upload.Name)
+	if err := os.MkdirAll(filepath.Dir(pathInRepo), 0o700); err != nil {
+		return err
+	}
+	if err := os.Rename(info.upload.LocalPath(), pathInRepo); err != nil {
+		// Rename didn't work, try copy and remove
+		inputFile, err := os.Open(info.upload.LocalPath())
+		if err != nil {
+			return fmt.Errorf("could not open source file: %v", err)
+		}
+		defer inputFile.Close()
+		outputFile, err := os.Create(pathInRepo)
+		if err != nil {
+			return fmt.Errorf("could not open dest file: %v", err)
+		}
+		defer outputFile.Close()
+		_, err = io.Copy(outputFile, inputFile)
+		if err != nil {
+			return fmt.Errorf("could not copy to dest from source: %v", err)
+		}
+		inputFile.Close()
+		err = os.Remove(info.upload.LocalPath())
+		if err != nil {
+			return fmt.Errorf("could not remove source file: %v", err)
+		}
+	}
+	return t.AddAnnex(pathInRepo)
+}
+
+func moveAnnexedFilesToOrigin(t *TemporaryUploadRepository, author, committer *user_model.User) error {
+	authorSig := author.NewGitSig()
+	committerSig := committer.NewGitSig()
+	env := append(os.Environ(),
+		"GIT_AUTHOR_NAME="+authorSig.Name,
+		"GIT_AUTHOR_EMAIL="+authorSig.Email,
+		"GIT_COMMITTER_NAME="+committerSig.Name,
+		"GIT_COMMITTER_EMAIL="+committerSig.Email,
+	)
+	if _, _, err := git.NewCommand(t.ctx, "annex", "move", "--to", "origin").RunStdString(&git.RunOpts{Dir: t.basePath, Env: env}); err != nil {
+		return err
 	}
 	return nil
 }

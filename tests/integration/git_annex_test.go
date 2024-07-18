@@ -5,14 +5,17 @@
 package integration
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"math/rand"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -57,6 +60,84 @@ func doCreateRemoteAnnexRepository(t *testing.T, u *url.URL, ctx APITestContext,
 		return fmt.Errorf("Unable to initialize remote repo with git-annex fixture: %w", err)
 	}
 	return nil
+}
+
+func TestGitAnnexWebUpload(t *testing.T) {
+	if !setting.Annex.Enabled {
+		t.Skip("Skipping since annex support is disabled.")
+	}
+
+	onGiteaRun(t, func(t *testing.T, u *url.URL) {
+		forEachObjectFormat(t, func(t *testing.T, objectFormat git.ObjectFormat) {
+			ctx := NewAPITestContext(t, "user2", "annex-web-upload-test"+objectFormat.Name(), auth_model.AccessTokenScopeWriteRepository)
+			require.NoError(t, doCreateRemoteAnnexRepository(t, u, ctx, false, objectFormat))
+
+			uploadFile := func(t *testing.T, path string) string {
+				t.Helper()
+
+				body := &bytes.Buffer{}
+				mpForm := multipart.NewWriter(body)
+				err := mpForm.WriteField("_csrf", GetCSRF(t, ctx.Session, ctx.Username+"/"+ctx.Reponame+"/_upload/"+setting.Repository.DefaultBranch))
+				require.NoError(t, err)
+
+				file, err := mpForm.CreateFormFile("file", filepath.Base(path))
+				require.NoError(t, err)
+
+				srcFile, err := os.Open(path)
+				require.NoError(t, err)
+
+				io.Copy(file, srcFile)
+				require.NoError(t, mpForm.Close())
+
+				req := NewRequestWithBody(t, "POST", "/"+ctx.Username+"/"+ctx.Reponame+"/upload-file", body)
+				req.Header.Add("Content-Type", mpForm.FormDataContentType())
+				resp := ctx.Session.MakeRequest(t, req, http.StatusOK)
+
+				respMap := map[string]string{}
+				DecodeJSON(t, resp, &respMap)
+				return respMap["uuid"]
+			}
+
+			// Generate random file
+			tmpFile := path.Join(t.TempDir(), "web-upload-test-file.bin")
+			require.NoError(t, generateRandomFile(1024*1024/4, tmpFile))
+			expectedContent, err := os.ReadFile(tmpFile)
+			require.NoError(t, err)
+
+			// Upload generated file
+			fileUUID := uploadFile(t, tmpFile)
+			req := NewRequestWithValues(t, "POST", ctx.Username+"/"+ctx.Reponame+"/_upload/"+setting.Repository.DefaultBranch, map[string]string{
+				"commit_choice":  "direct",
+				"files":          fileUUID,
+				"_csrf":          GetCSRF(t, ctx.Session, ctx.Username+"/"+ctx.Reponame+"/_upload/"+setting.Repository.DefaultBranch),
+				"commit_mail_id": "-1",
+			})
+			ctx.Session.MakeRequest(t, req, http.StatusSeeOther)
+
+			// Get some handles on the target repository and file
+			remoteRepoPath := path.Join(setting.RepoRootPath, ctx.GitPath())
+			repo, err := git.OpenRepository(git.DefaultContext, remoteRepoPath)
+			require.NoError(t, err)
+			defer repo.Close()
+			tree, err := repo.GetTree(setting.Repository.DefaultBranch)
+			require.NoError(t, err)
+			treeEntry, err := tree.GetTreeEntryByPath(filepath.Base(tmpFile))
+			require.NoError(t, err)
+			blob := treeEntry.Blob()
+
+			// Check that the uploaded file is annexed
+			isAnnexed, err := annex.IsAnnexed(blob)
+			require.NoError(t, err)
+			require.True(t, isAnnexed)
+
+			// Check that the uploaded file has the correct content
+			annexedFile, err := annex.Content(blob)
+			require.NoError(t, err)
+			actualContent, err := io.ReadAll(annexedFile)
+			require.NoError(t, err)
+			require.Equal(t, expectedContent, actualContent)
+		})
+	})
 }
 
 func TestGitAnnexMedia(t *testing.T) {
