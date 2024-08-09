@@ -102,14 +102,14 @@ func Int64sToStrings(ints []int64) []string {
 
 // EntryIcon returns the octicon class for displaying files/directories
 func EntryIcon(entry *git.TreeEntry) string {
+	isAnnexed, _ := annex.IsAnnexed(entry.Blob())
+	if isAnnexed {
+		// Show git-annex files as binary files to differentiate them from non-annexed files
+		// TODO: find a more suitable icon, maybe something related to git-annex
+		return "file-binary"
+	}
 	switch {
 	case entry.IsLink():
-		isAnnexed, _ := annex.IsAnnexed(entry.Blob())
-		if isAnnexed {
-			// git-annex files are sometimes stored as symlinks;
-			// short-circuit that so like LFS they are displayed as regular files
-			return "file"
-		}
 		te, _, err := entry.FollowLink()
 		if err != nil {
 			log.Debug(err.Error())

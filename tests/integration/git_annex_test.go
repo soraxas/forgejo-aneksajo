@@ -214,7 +214,7 @@ func TestGitAnnexViews(t *testing.T) {
 			session := loginUser(t, ctx.Username)
 
 			t.Run("Index", func(t *testing.T) {
-				// test that annex symlinks renders with the _file icon_ on the main list
+				// test that annexed files render with the binary file icon on the main list
 				defer tests.PrintCurrentTest(t)()
 
 				repoLink := path.Join("/", ctx.Username, ctx.Reponame)
@@ -222,8 +222,10 @@ func TestGitAnnexViews(t *testing.T) {
 				resp := session.MakeRequest(t, req, http.StatusOK)
 
 				htmlDoc := NewHTMLParser(t, resp.Body)
-				isFileIcon := htmlDoc.Find("tr[data-entryname='annexed.tiff'] > td.name svg").HasClass("octicon-file")
-				require.True(t, isFileIcon, "annexed files should render a plain file icon, even when stored via annex symlink")
+				isFileBinaryIconLocked := htmlDoc.Find("tr[data-entryname='annexed.tiff'] > td.name svg").HasClass("octicon-file-binary")
+				require.True(t, isFileBinaryIconLocked, "locked annexed files should render a binary file icon")
+				isFileBinaryIconUnlocked := htmlDoc.Find("tr[data-entryname='annexed.bin'] > td.name svg").HasClass("octicon-file-binary")
+				require.True(t, isFileBinaryIconUnlocked, "unlocked annexed files should render a binary file icon")
 			})
 
 			t.Run("View", func(t *testing.T) {
