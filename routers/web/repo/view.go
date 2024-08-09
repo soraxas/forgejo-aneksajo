@@ -212,12 +212,13 @@ func localizedExtensions(ext, languageCode string) (localizedExts []string) {
 }
 
 type fileInfo struct {
-	isTextFile  bool
-	isLFSFile   bool
-	isAnnexFile bool
-	fileSize    int64
-	lfsMeta     *lfs.Pointer
-	st          typesniffer.SniffedType
+	isTextFile         bool
+	isLFSFile          bool
+	isAnnexFile        bool
+	isAnnexFilePresent bool
+	fileSize           int64
+	lfsMeta            *lfs.Pointer
+	st                 typesniffer.SniffedType
 }
 
 func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte, io.ReadCloser, *fileInfo, error) {
@@ -232,11 +233,22 @@ func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte,
 
 		annexContent, err := annex.Content(blob)
 		if err != nil {
-			// in the case where annex content is missing, what should happen?
-			// do we render the page with an error message?
-			// actually that's not a bad idea, there's some sort of error message situation
-			// TODO: display an error to the user explaining that their data is missing
-			return nil, nil, nil, err
+			// If annex.Content returns an error it can mean that the blob does not
+			// refer to an annexed file or that it is not present here. Since we already
+			// checked that it is annexed the latter must be the case. So we return the
+			// content of the blob instead and indicate that the file is indeed annexed,
+			// but not present here. The template can then communicate the situation.
+			dataRc, err := blob.DataAsync()
+			if err != nil {
+				return nil, nil, nil, err
+			}
+
+			buf := make([]byte, 1024)
+			n, _ := util.ReadAtMost(dataRc, buf)
+			buf = buf[:n]
+
+			st := typesniffer.DetectContentType(buf)
+			return buf, dataRc, &fileInfo{st.IsText(), false, true, false, blob.Size(), nil, st}, nil
 		}
 
 		stat, err := annexContent.Stat()
@@ -250,7 +262,7 @@ func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte,
 
 		st := typesniffer.DetectContentType(buf)
 
-		return buf, annexContent, &fileInfo{st.IsText(), false, true, stat.Size(), nil, st}, nil
+		return buf, annexContent, &fileInfo{st.IsText(), false, true, true, stat.Size(), nil, st}, nil
 	}
 
 	dataRc, err := blob.DataAsync()
@@ -267,18 +279,18 @@ func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte,
 
 	// FIXME: what happens when README file is an image?
 	if !isTextFile || !setting.LFS.StartServer {
-		return buf, dataRc, &fileInfo{isTextFile, false, false, blob.Size(), nil, st}, nil
+		return buf, dataRc, &fileInfo{isTextFile, false, false, false, blob.Size(), nil, st}, nil
 	}
 
 	pointer, _ := lfs.ReadPointerFromBuffer(buf)
 	if !pointer.IsValid() { // fallback to plain file
-		return buf, dataRc, &fileInfo{isTextFile, false, false, blob.Size(), nil, st}, nil
+		return buf, dataRc, &fileInfo{isTextFile, false, false, false, blob.Size(), nil, st}, nil
 	}
 
 	meta, err := git_model.GetLFSMetaObjectByOid(ctx, repoID, pointer.Oid)
 	if err != nil { // fallback to plain file
 		log.Warn("Unable to access LFS pointer %s in repo %d: %v", pointer.Oid, repoID, err)
-		return buf, dataRc, &fileInfo{isTextFile, false, false, blob.Size(), nil, st}, nil
+		return buf, dataRc, &fileInfo{isTextFile, false, false, false, blob.Size(), nil, st}, nil
 	}
 
 	dataRc.Close()
@@ -298,7 +310,7 @@ func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte,
 
 	st = typesniffer.DetectContentType(buf, blob.Name())
 
-	return buf, dataRc, &fileInfo{st.IsText(), true, false, meta.Size, &meta.Pointer, st}, nil
+	return buf, dataRc, &fileInfo{st.IsText(), true, false, false, meta.Size, &meta.Pointer, st}, nil
 }
 
 func renderReadmeFile(ctx *context.Context, subfolder string, readmeFile *git.TreeEntry) {
@@ -503,6 +515,7 @@ func renderFile(ctx *context.Context, entry *git.TreeEntry) {
 	}
 	ctx.Data["IsLFSFile"] = fInfo.isLFSFile
 	ctx.Data["IsAnnexFile"] = fInfo.isAnnexFile
+	ctx.Data["IsAnnexFilePresent"] = fInfo.isAnnexFilePresent
 	ctx.Data["FileSize"] = fInfo.fileSize
 	ctx.Data["IsTextFile"] = fInfo.isTextFile
 	ctx.Data["IsRepresentableAsText"] = isRepresentableAsText
@@ -1240,6 +1253,15 @@ PostRecentBranchCheck:
 		ctx.Data["CodeSearchOptions"] = code_indexer.CodeSearchOptions
 	} else {
 		ctx.Data["CodeSearchOptions"] = git.GrepSearchOptions
+	}
+	isAnnexFile, okAnnexFile := ctx.Data["IsAnnexFile"]
+	isAnnexFilePresent, okAnnexFilePresent := ctx.Data["IsAnnexFilePresent"]
+	if okAnnexFile && okAnnexFilePresent && isAnnexFile.(bool) && !isAnnexFilePresent.(bool) {
+		// If the file to be viewed is annexed but not present then render it normally
+		// (which will show the plain git blob content, i.e. the symlink or pointer target)
+		// but make the status code a 404.
+		ctx.HTML(http.StatusNotFound, tplRepoHome)
+		return
 	}
 	ctx.HTML(http.StatusOK, tplRepoHome)
 }
