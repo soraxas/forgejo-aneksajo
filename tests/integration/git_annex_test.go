@@ -752,11 +752,11 @@ func withAnnexCtxKeyFile(t *testing.T, ctx APITestContext, callback func()) {
 	defer func() {
 		// reset
 		if gitAnnexUseGitSSHExists {
-			os.Setenv("GIT_ANNEX_USE_GIT_SSH", _gitAnnexUseGitSSH)
+			t.Setenv("GIT_ANNEX_USE_GIT_SSH", _gitAnnexUseGitSSH)
 		}
 	}()
 
-	os.Setenv("GIT_ANNEX_USE_GIT_SSH", "1") // withKeyFile works by setting GIT_SSH_COMMAND, but git-annex only respects that if this is set
+	t.Setenv("GIT_ANNEX_USE_GIT_SSH", "1") // withKeyFile works by setting GIT_SSH_COMMAND, but git-annex only respects that if this is set
 
 	withCtxKeyFile(t, ctx, callback)
 }
