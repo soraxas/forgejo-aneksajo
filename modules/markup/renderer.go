@@ -68,14 +68,18 @@ type Header struct {
 
 // RenderContext represents a render context
 type RenderContext struct {
-	Ctx              context.Context
-	RelativePath     string // relative path from tree root of the branch
-	Type             string
-	IsWiki           bool
-	Links            Links
-	Metas            map[string]string
-	DefaultLink      string
-	GitRepo          *git.Repository
+	Ctx          context.Context
+	RelativePath string // relative path from tree root of the branch
+	Type         string
+	IsWiki       bool
+	Links        Links
+	Metas        map[string]string
+	DefaultLink  string
+	GitRepo      *git.Repository
+	// reporting the target blob that is to-be-rendered enables
+	// deeper inspection in the handler for external renderer
+	// (i.e., more targeted handling of annexed files)
+	Blob             *git.Blob
 	ShaExistCache    map[string]bool
 	cancelFn         func()
 	SidebarTocNode   ast.Node

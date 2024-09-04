@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/graceful"
 	"forgejo.org/modules/log"
 	"forgejo.org/modules/markup"
@@ -82,8 +83,22 @@ func (p *Renderer) Render(ctx *markup.RenderContext, input io.Reader, output io.
 		commands = strings.Fields(command)
 		args     = commands[1:]
 	)
-
-	if p.IsInputFile {
+	isAnnexed, _ := annex.IsAnnexed(ctx.Blob)
+	// if a renderer wants to read a file, and we have annexed content, we can
+	// provide the annex key file location directly to the renderer. git-annex
+	// takes care of having that location be read-only, so no critical
+	// protection layer is needed. Moreover, the file readily exists, and
+	// expensive temporary files can be avoided, also allowing an operator
+	// to raise MAX_DISPLAY_FILE_SIZE without much negative impact.
+	if p.IsInputFile && isAnnexed {
+		// look for annexed content, will be empty, if there is none
+		annexContentLocation, _ := annex.ContentLocation(ctx.Blob)
+		// we call the renderer, even if there is no annex content present.
+		// showing the pointer file content is not much use, and a topical
+		// renderer might be able to produce something useful from the
+		// filename alone (present in ENV)
+		args = append(args, annexContentLocation)
+	} else if p.IsInputFile {
 		// write to temp file
 		f, err := os.CreateTemp("", "gitea_input")
 		if err != nil {
@@ -126,6 +141,12 @@ func (p *Renderer) Render(ctx *markup.RenderContext, input io.Reader, output io.
 		os.Environ(),
 		"GITEA_PREFIX_SRC="+ctx.Links.SrcLink(),
 		"GITEA_PREFIX_RAW="+ctx.Links.RawLink(),
+		// also communicate the relative path of the to-be-rendered item.
+		// this enables the renderer to make use of the original file name
+		// and path, e.g., to make rendering or dtype-detection decisions
+		// that go beyond the originally matched extension. Even if the
+		// content is directly streamed to STDIN
+		"GITEA_RELATIVE_PATH="+ctx.RelativePath,
 	)
 	if !p.IsInputFile {
 		cmd.Stdin = input

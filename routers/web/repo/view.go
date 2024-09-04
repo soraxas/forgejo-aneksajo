@@ -373,6 +373,7 @@ func renderReadmeFile(ctx *context.Context, subfolder string, readmeFile *git.Tr
 			},
 			Metas:   ctx.Repo.Repository.ComposeDocumentMetas(ctx),
 			GitRepo: ctx.Repo.GitRepo,
+			Blob:    target.Blob(),
 		}, rd)
 		if err != nil {
 			log.Error("Render failed for %s in %-v: %v Falling back to rendering source", readmeFile.Name(), ctx.Repo.Repository, err)
@@ -606,6 +607,7 @@ func renderFile(ctx *context.Context, entry *git.TreeEntry) {
 				},
 				Metas:   metas,
 				GitRepo: ctx.Repo.GitRepo,
+				Blob:    entry.Blob(),
 			}, rd)
 			if err != nil {
 				ctx.ServerError("Render", err)
@@ -718,6 +720,7 @@ func renderFile(ctx *context.Context, entry *git.TreeEntry) {
 				},
 				Metas:   ctx.Repo.Repository.ComposeDocumentMetas(ctx),
 				GitRepo: ctx.Repo.GitRepo,
+				Blob:    entry.Blob(),
 			}, rd)
 			if err != nil {
 				ctx.ServerError("Render", err)
