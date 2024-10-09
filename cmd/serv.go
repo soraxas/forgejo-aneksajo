@@ -348,9 +348,8 @@ func runServ(ctx context.Context, c *cli.Command) error {
 		return nil
 	}
 
-	gitBinPath := filepath.Dir(git.GitExecutable) // e.g. /usr/bin
-	gitBinVerb := filepath.Join(gitBinPath, verb) // e.g. /usr/bin/git-upload-pack
-	if _, err := os.Stat(gitBinVerb); err != nil {
+	gitBinVerb, err := exec.LookPath(verb)
+	if err != nil {
 		// if the command "git-upload-pack" doesn't exist, try to split "git-upload-pack" to use the sub-command with git
 		// ps: Windows only has "git.exe" in the bin path, so Windows always uses this way
 		// ps: git-annex-shell and other extensions may not necessarily be in gitBinPath,
