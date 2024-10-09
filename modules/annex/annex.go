@@ -104,6 +104,18 @@ func Pointer(blob *git.Blob) (string, error) {
 	return pointer, nil
 }
 
+func ContentLocationFromPointer(repoPath, pointer string) (string, error) {
+	contentLocation, _, err := git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "contentlocation").AddDynamicArguments(pointer).RunStdString(&git.RunOpts{Dir: repoPath})
+	if err != nil {
+		return "", fmt.Errorf("in %s: %s does not seem to be a valid annexed file: %w", repoPath, pointer, err)
+	}
+	contentLocation = strings.TrimSpace(contentLocation)
+	contentLocation = path.Clean("/" + contentLocation)[1:] // prevent directory traversals
+	contentLocation = path.Join(repoPath, contentLocation)
+
+	return contentLocation, nil
+}
+
 // return the absolute path of the content pointed to by the annex pointer stored in the git object
 // errors if the content is not found in this repo
 func ContentLocation(blob *git.Blob) (string, error) {
@@ -111,16 +123,7 @@ func ContentLocation(blob *git.Blob) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	contentLocation, _, err := git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "contentlocation").AddDynamicArguments(pointer).RunStdString(&git.RunOpts{Dir: blob.Repo().Path})
-	if err != nil {
-		return "", fmt.Errorf("in %s: %s does not seem to be a valid annexed file: %w", blob.Repo().Path, pointer, err)
-	}
-	contentLocation = strings.TrimSpace(contentLocation)
-	contentLocation = path.Clean("/" + contentLocation)[1:] // prevent directory traversals
-	contentLocation = path.Join(blob.Repo().Path, contentLocation)
-
-	return contentLocation, nil
+	return ContentLocationFromPointer(blob.Repo().Path, pointer)
 }
 
 // returns a stream open to the annex content

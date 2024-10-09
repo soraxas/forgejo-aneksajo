@@ -1119,19 +1119,21 @@ func doAnnexUploadTest(remoteRepoPath, repoPath string) (err error) {
 		return err
 	}
 
-	_, _, err = git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "sync", "--no-content").RunStdString(&git.RunOpts{Dir: repoPath})
-	if err != nil {
-		return err
-	}
-
 	// verify the file was uploaded
-	localObjectPath, err := contentLocation(repoPath, "contribution.bin")
+	blob, err := blobForFile(repoPath, "contribution.bin")
 	if err != nil {
 		return err
 	}
-	// localObjectPath := path.Join(repoPath, "contribution.bin") // or, just compare against the checked-out file
+	key, err := annex.Pointer(blob)
+	if err != nil {
+		return err
+	}
+	localObjectPath, err := annex.ContentLocationFromPointer(repoPath, key)
+	if err != nil {
+		return err
+	}
 
-	remoteObjectPath, err := contentLocation(remoteRepoPath, "contribution.bin")
+	remoteObjectPath, err := annex.ContentLocationFromPointer(remoteRepoPath, key)
 	if err != nil {
 		return err
 	}
@@ -1325,6 +1327,31 @@ func doInitRemoteAnnexRepository(t *testing.T, repoURL *url.URL) error {
 	return nil
 }
 
+func blobForFile(repoPath, file string) (*git.Blob, error) {
+	repo, err := git.OpenRepository(git.DefaultContext, repoPath)
+	if err != nil {
+		return nil, err
+	}
+	defer repo.Close()
+
+	commitID, err := repo.GetRefCommitID("HEAD") // NB: to examine a *branch*, prefix with "refs/branch/", or call repo.GetBranchCommitID(); ditto for tags
+	if err != nil {
+		return nil, err
+	}
+
+	commit, err := repo.GetCommit(commitID)
+	if err != nil {
+		return nil, err
+	}
+
+	treeEntry, err := commit.GetTreeEntryByPath(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return treeEntry.Blob(), nil
+}
+
 /*
 Find the path in .git/annex/objects/ of the contents for a given annexed file.
 
@@ -1334,30 +1361,11 @@ Find the path in .git/annex/objects/ of the contents for a given annexed file.
 	TODO: pass a parameter to allow examining non-HEAD branches
 */
 func contentLocation(repoPath, file string) (path string, err error) {
-	path = ""
-
-	repo, err := git.OpenRepository(git.DefaultContext, repoPath)
+	blob, err := blobForFile(repoPath, file)
 	if err != nil {
-		return path, nil
+		return "", err
 	}
-	defer repo.Close()
-
-	commitID, err := repo.GetRefCommitID("HEAD") // NB: to examine a *branch*, prefix with "refs/branch/", or call repo.GetBranchCommitID(); ditto for tags
-	if err != nil {
-		return path, nil
-	}
-
-	commit, err := repo.GetCommit(commitID)
-	if err != nil {
-		return path, nil
-	}
-
-	treeEntry, err := commit.GetTreeEntryByPath(file)
-	if err != nil {
-		return path, nil
-	}
-
-	return annex.ContentLocation(treeEntry.Blob())
+	return annex.ContentLocation(blob)
 }
 
 /* like withKeyFile(), but automatically sets it the account given in ctx for use by git-annex */
