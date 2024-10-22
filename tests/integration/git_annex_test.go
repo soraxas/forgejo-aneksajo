@@ -382,33 +382,59 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxKeyFile(t, ownerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
+								require.NoError(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
+								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadWriteTest(repoPath))
-							})
-
-							t.Run("Upload", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
-								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
 							})
 						})
 					})
@@ -425,24 +451,58 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
 							})
 						})
@@ -464,33 +524,59 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxKeyFile(t, writerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
+								require.NoError(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
+								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadWriteTest(repoPath))
-							})
-
-							t.Run("Upload", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
-								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
 							})
 						})
 					})
@@ -507,24 +593,58 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
 							})
 						})
@@ -546,33 +666,59 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxKeyFile(t, readerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
-							})
-
-							t.Run("Upload", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
-								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
 							})
 						})
 					})
@@ -589,24 +735,58 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
 							})
 						})
@@ -628,33 +808,59 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxKeyFile(t, outsiderCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
-							})
-
-							t.Run("Upload", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
-								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
 							})
 						})
 					})
@@ -671,24 +877,58 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
 							})
 						})
@@ -721,6 +961,26 @@ func TestGitAnnexPermissions(t *testing.T) {
 						t.Run("Download", func(t *testing.T) {
 							defer tests.PrintCurrentTest(t)()
 							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+						})
+
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							require.NoError(t, doAnnexLocalDropTest(repoPath))
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
 						})
 
 						t.Run("TestremoteReadOnly", func(t *testing.T) {
@@ -790,33 +1050,59 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxKeyFile(t, ownerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
+								require.NoError(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
+								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, ownerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadWriteTest(repoPath))
-							})
-
-							t.Run("Upload", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
-								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
 							})
 						})
 					})
@@ -833,24 +1119,58 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, ownerCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
 							})
 						})
@@ -872,33 +1192,59 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxKeyFile(t, writerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
+								require.NoError(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
+								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, writerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadWriteTest(repoPath))
-							})
-
-							t.Run("Upload", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
-								require.NoError(t, doAnnexUploadTest(remoteRepoPath, repoPath))
 							})
 						})
 					})
@@ -915,24 +1261,58 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, writerCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
 							})
 						})
@@ -954,33 +1334,59 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxKeyFile(t, readerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, readerCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
-							})
-
-							t.Run("Upload", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
-								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "Uploading should fail due to permissions")
 							})
 						})
 					})
@@ -997,24 +1403,58 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
 								require.NoError(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
 								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
+								require.NoError(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
+								require.NoError(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
 								require.NoError(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, readerCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
 							})
 						})
@@ -1036,33 +1476,59 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxKeyFile(t, outsiderCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
 								require.Error(t, doAnnexInitTest(remoteRepoPath, repoPath), "annex init should fail due to permissions")
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
 								require.Error(t, doAnnexDownloadTest(remoteRepoPath, repoPath), "annex copy --from should fail due to permissions")
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
+								require.Error(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
+								require.Error(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "annex copy --to should fail due to permissions")
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
 								require.Error(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxKeyFile(t, outsiderCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
-							})
-
-							t.Run("Upload", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
-
-								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath), "annex copy --to should fail due to permissions")
 							})
 						})
 					})
@@ -1079,24 +1545,58 @@ func TestGitAnnexPermissions(t *testing.T) {
 							doGitClone(repoPath, repoURL)(t)
 						})
 
-						withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
-							t.Run("Init", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Init", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
 								require.Error(t, doAnnexInitTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("Download", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
 								require.Error(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadOnly", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
+								require.Error(t, doAnnexLocalDropTest(repoPath))
+							})
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
+								require.Error(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
+								require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
+								require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
+							})
+						})
+
+						t.Run("TestremoteReadOnly", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
 								require.Error(t, doAnnexTestremoteReadOnlyTest(repoPath))
 							})
+						})
 
-							t.Run("TestremoteReadWrite", func(t *testing.T) {
-								defer tests.PrintCurrentTest(t)()
+						t.Run("TestremoteReadWrite", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							withAnnexCtxHTTPPassword(t, u, outsiderCtx, func() {
 								require.Error(t, doAnnexTestremoteReadWriteTest(repoPath))
 							})
 						})
@@ -1129,6 +1629,26 @@ func TestGitAnnexPermissions(t *testing.T) {
 						t.Run("Download", func(t *testing.T) {
 							defer tests.PrintCurrentTest(t)()
 							require.Error(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+						})
+
+						t.Run("LocalDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							require.Error(t, doAnnexLocalDropTest(repoPath))
+						})
+
+						t.Run("Download", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							require.Error(t, doAnnexDownloadTest(remoteRepoPath, repoPath))
+						})
+
+						t.Run("RemoteDrop", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							require.Error(t, doAnnexRemoteDropTest(remoteRepoPath, repoPath))
+						})
+
+						t.Run("Upload", func(t *testing.T) {
+							defer tests.PrintCurrentTest(t)()
+							require.Error(t, doAnnexUploadTest(remoteRepoPath, repoPath))
 						})
 
 						t.Run("TestremoteReadOnly", func(t *testing.T) {
@@ -1290,6 +1810,40 @@ func doAnnexDownloadTest(remoteRepoPath, repoPath string) (err error) {
 	return err
 }
 
+func doAnnexLocalDropTest(repoPath string) (err error) {
+	// This test assumes that files are present in repoPath, i.e. it is run after doAnnexDownloadTest.
+	// This test drops all files from the repository clone.
+	binPath, err := contentLocation(repoPath, "annexed.bin")
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(binPath)
+	if err != nil {
+		return err
+	}
+	tiffPath, err := contentLocation(repoPath, "annexed.tiff")
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(tiffPath)
+	if err != nil {
+		return err
+	}
+	_, _, err = git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "drop").RunStdString(&git.RunOpts{Dir: repoPath})
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(binPath)
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("annexed.bin wasn't dropped properly: %w", err)
+	}
+	_, err = os.Stat(tiffPath)
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("annexed.tiff wasn't dropped properly: %w", err)
+	}
+	return nil
+}
+
 func doAnnexUploadTest(remoteRepoPath, repoPath string) (err error) {
 	// NB: this test does something slightly different if run separately from "Init":
 	//     it first runs "git annex init" silently in the background.
@@ -1342,6 +1896,40 @@ func doAnnexUploadTest(remoteRepoPath, repoPath string) (err error) {
 		return errors.New("Annexed files should be the same")
 	}
 
+	return nil
+}
+
+func doAnnexRemoteDropTest(remoteRepoPath, repoPath string) (err error) {
+	// This test assumes that files are present in repoPath, i.e. it is run after doAnnexDownloadTest.
+	// This test drops all files from the remote repository.
+	binPath, err := contentLocation(remoteRepoPath, "annexed.bin")
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(binPath)
+	if err != nil {
+		return err
+	}
+	tiffPath, err := contentLocation(remoteRepoPath, "annexed.tiff")
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(tiffPath)
+	if err != nil {
+		return err
+	}
+	_, _, err = git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "drop", "--from", "origin").RunStdString(&git.RunOpts{Dir: repoPath})
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(binPath)
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("annexed.bin wasn't dropped properly: %w", err)
+	}
+	_, err = os.Stat(tiffPath)
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("annexed.tiff wasn't dropped properly: %w", err)
+	}
 	return nil
 }
 
