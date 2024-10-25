@@ -391,6 +391,13 @@ func registerRoutes(m *web.Route) {
 		}
 	}
 
+	annexP2PHTTPEnabled := func(ctx *context.Context) {
+		if setting.Annex.DisableP2PHTTP {
+			ctx.Error(http.StatusNotFound)
+			return
+		}
+	}
+
 	federationEnabled := func(ctx *context.Context) {
 		if !setting.Federation.Enabled {
 			ctx.Error(http.StatusNotFound)
@@ -1007,6 +1014,9 @@ func registerRoutes(m *web.Route) {
 	// ***** END: Organization *****
 
 	// ***** START: Repository *****
+	m.Group("", func() {
+		m.Methods("GET,POST", "/git-annex-p2phttp/git-annex/{uuid}/*", repo.AnnexP2PHTTP)
+	}, ignSignInAndCsrf, annexEnabled, annexP2PHTTPEnabled)
 	m.Group("/repo", func() {
 		m.Get("/create", repo.Create)
 		m.Post("/create", web.Bind(forms.CreateRepoForm{}), repo.CreatePost)
@@ -1697,7 +1707,7 @@ func registerRoutes(m *web.Route) {
 
 			m.Group("", func() {
 				// for git-annex
-				m.Methods("GET,OPTIONS", "/config", repo.GetTextFile("config")) // needed by clients reading annex.uuid during `git annex initremote`
+				m.Methods("GET,OPTIONS", "/config", repo.GetConfig) // needed by clients reading annex.uuid during `git annex initremote`
 				m.Methods("GET,OPTIONS", "/annex/objects/{hash1}/{hash2}/{keyDir}/{key}", repo.GetAnnexObject)
 			}, ignSignInAndCsrf, annexEnabled, context.UserAssignmentWeb())
 

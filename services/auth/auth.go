@@ -61,7 +61,7 @@ func isArchivePath(req *http.Request) bool {
 	return archivePathRe.MatchString(req.URL.Path)
 }
 
-var annexPathRe = regexp.MustCompile(`^/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/annex/`)
+var annexPathRe = regexp.MustCompile(`^(/git-annex-p2phttp/|/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/annex/)`)
 
 func isAnnexPath(req *http.Request) bool {
 	if setting.Annex.Enabled {

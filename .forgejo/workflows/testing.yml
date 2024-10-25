@@ -211,7 +211,6 @@ jobs:
       - uses: ./.forgejo/workflows-composite/build-backend
       - run: |
           su forgejo -c 'make test-mysql-migration test-mysql'
-        timeout-minutes: 120
         env:
           USE_REPO_TEST_DIR: 1
   test-pgsql:
@@ -248,7 +247,6 @@ jobs:
       - uses: ./.forgejo/workflows-composite/build-backend
       - run: |
           su forgejo -c 'make test-pgsql-migration test-pgsql'
-        timeout-minutes: 120
         env:
           RACE_ENABLED: true
           USE_REPO_TEST_DIR: 1
@@ -269,7 +267,6 @@ jobs:
       - uses: ./.forgejo/workflows-composite/build-backend
       - run: |
           su forgejo -c 'make test-sqlite-migration test-sqlite'
-        timeout-minutes: 120
         env:
           TAGS: sqlite sqlite_unlock_notify
           RACE_ENABLED: true

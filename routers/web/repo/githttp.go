@@ -539,6 +539,26 @@ func GetInfoRefs(ctx *context.Context) {
 	}
 }
 
+// GetConfig implements fetching the git config of a repository
+func GetConfig(ctx *context.Context) {
+	h := httpBase(ctx)
+	if h != nil {
+		setHeaderNoCache(ctx)
+		config, err := os.ReadFile(filepath.Join(h.getRepoDir(), "config"))
+		if err != nil {
+			log.Error("Failed to read git config file: %v", err)
+			ctx.Resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if !setting.Annex.DisableP2PHTTP {
+			config = append(config, []byte("[annex]\n\turl = annex+"+setting.AppURL+"git-annex-p2phttp\n")...)
+		}
+		ctx.Resp.Header().Set("Content-Type", "text/plain")
+		ctx.Resp.Header().Set("Content-Length", fmt.Sprintf("%d", len(config)))
+		http.ServeContent(ctx.Resp, ctx.Req, "config", time.Now(), bytes.NewReader(config))
+	}
+}
+
 // GetTextFile implements Git dumb HTTP
 func GetTextFile(p string) func(*context.Context) {
 	return func(ctx *context.Context) {

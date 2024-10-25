@@ -12,8 +12,11 @@ package annex
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"forgejo.org/modules/git"
@@ -160,4 +163,29 @@ func IsAnnexed(blob *git.Blob) (bool, error) {
 func IsAnnexRepo(repo *git.Repository) bool {
 	_, _, err := git.NewCommand(repo.Ctx, "config", "annex.uuid").RunStdString(&git.RunOpts{Dir: repo.Path})
 	return err == nil
+}
+
+var repoConfigFileRe = regexp.MustCompile("[^/]+/[^/]+.git/config$")
+
+func UUID2RepoPath(uuid string) (string, error) {
+	var repoPath string
+	err := filepath.WalkDir(setting.RepoRootPath, func(path string, d fs.DirEntry, err error) error {
+		if err == nil && repoConfigFileRe.MatchString(path) {
+			thisRepoPath := strings.TrimSuffix(path, "/config")
+			stdout, _, err := git.NewCommand(git.DefaultContext, "config", "annex.uuid").RunStdString(&git.RunOpts{Dir: thisRepoPath})
+			if err != nil {
+				return nil
+			}
+			repoUUID := strings.TrimSpace(stdout)
+			if repoUUID == uuid {
+				repoPath = thisRepoPath
+				return fs.SkipAll
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return repoPath, nil
 }
