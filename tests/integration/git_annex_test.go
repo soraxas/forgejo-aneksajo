@@ -2576,16 +2576,16 @@ func doAnnexUploadTest(remoteRepoPath, repoPath string) (err error) {
 	if err != nil {
 		return err
 	}
-	key, err := annex.Pointer(blob)
+	key, err := annex.LookupKey(blob)
 	if err != nil {
 		return err
 	}
-	localObjectPath, err := annex.ContentLocationFromPointer(repoPath, key)
+	localObjectPath, err := annex.ContentLocationFromKey(repoPath, key)
 	if err != nil {
 		return err
 	}
 
-	remoteObjectPath, err := annex.ContentLocationFromPointer(remoteRepoPath, key)
+	remoteObjectPath, err := annex.ContentLocationFromKey(remoteRepoPath, key)
 	if err != nil {
 		return err
 	}
