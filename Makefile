@@ -90,7 +90,7 @@ else
     FORGEJO_VERSION_API ?= $(GITEA_VERSION)+${GITEA_COMPATIBILITY}
   else
     # drop the "g" prefix prepended by git describe to the commit hash
-    FORGEJO_VERSION ?= $(shell git describe --exclude '*-test' --tags --always 2>/dev/null | sed 's/^v//' | sed 's/\-g/-/')
+    FORGEJO_VERSION ?= $(shell git describe --exclude '*-test' --tags --always 2>/dev/null | sed 's/^v//' | sed 's/\-g/-/2')
     ifneq ($(FORGEJO_VERSION),)
       ifeq ($(findstring $(GITEA_COMPATIBILITY),$(FORGEJO_VERSION)),)
         FORGEJO_VERSION := $(FORGEJO_VERSION)+$(GITEA_COMPATIBILITY)

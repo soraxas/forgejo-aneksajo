@@ -12,6 +12,9 @@ jobs:
       matrix:
         type: ["rootful", "rootless"]
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # fetch the full history so that the Forgejo version is determined properly
       - name: Determine registry and username
         id: determine-registry-and-username
         run: |
@@ -32,6 +35,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
+          context: .
           file: ${{ (matrix.type == 'rootful' && 'Dockerfile') || (matrix.type == 'rootless' && 'Dockerfile.rootless') }}
           push: true
           tags: ${{ steps.determine-registry-and-username.outputs.registry }}/${{ github.repository }}:${{ github.ref_name }}${{ (matrix.type == 'rootful' && ' ') || (matrix.type == 'rootless' && '-rootless') }}
