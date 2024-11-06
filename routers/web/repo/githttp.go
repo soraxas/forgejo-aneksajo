@@ -10,6 +10,7 @@ import (
 	gocontext "context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -551,7 +552,23 @@ func GetConfig(ctx *context.Context) {
 			return
 		}
 		if !setting.Annex.DisableP2PHTTP {
-			config = append(config, []byte("[annex]\n\turl = annex+"+setting.AppURL+"git-annex-p2phttp\n")...)
+			appURL, err := url.Parse(setting.AppURL)
+			if err != nil {
+				log.Error("Could not parse 'setting.AppURL': %v", err)
+				ctx.Resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if appURL.Port() == "" {
+				// If there is no port set then set the http(s) default ports.
+				// Without this, git-annex would try its own default port (9417) and fail.
+				if appURL.Scheme == "http" {
+					appURL.Host += ":80"
+				}
+				if appURL.Scheme == "https" {
+					appURL.Host += ":443"
+				}
+			}
+			config = append(config, []byte("[annex]\n\turl = annex+"+appURL.String()+"git-annex-p2phttp\n")...)
 		}
 		ctx.Resp.Header().Set("Content-Type", "text/plain")
 		ctx.Resp.Header().Set("Content-Length", fmt.Sprintf("%d", len(config)))
