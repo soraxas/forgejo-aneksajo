@@ -95,25 +95,43 @@ func IsAnnexRepo(repo *git.Repository) bool {
 
 var repoConfigFileRe = regexp.MustCompile("[^/]+/[^/]+.git/config$")
 
-func UUID2RepoPath(uuid string) (string, error) {
-	var repoPath string
-	err := filepath.WalkDir(setting.RepoRootPath, func(path string, d fs.DirEntry, err error) error {
+var (
+	uuid2repoPathCache = make(map[string]string)
+	repoPath2uuidCache = make(map[string]string)
+)
+
+func updateUUID2RepoPathCache() error {
+	return filepath.WalkDir(setting.RepoRootPath, func(path string, d fs.DirEntry, err error) error {
 		if err == nil && repoConfigFileRe.MatchString(path) {
 			thisRepoPath := strings.TrimSuffix(path, "/config")
+			_, ok := repoPath2uuidCache[thisRepoPath]
+			if ok {
+				return nil
+			}
 			stdout, _, err := git.NewCommand(git.DefaultContext, "config", "annex.uuid").RunStdString(&git.RunOpts{Dir: thisRepoPath})
 			if err != nil {
 				return nil
 			}
 			repoUUID := strings.TrimSpace(stdout)
-			if repoUUID == uuid {
-				repoPath = thisRepoPath
-				return fs.SkipAll
+			if repoUUID != "" {
+				uuid2repoPathCache[repoUUID] = thisRepoPath
+				repoPath2uuidCache[thisRepoPath] = repoUUID
 			}
 		}
 		return nil
 	})
-	if err != nil {
+}
+
+func UUID2RepoPath(uuid string) (string, error) {
+	if repoPath, ok := uuid2repoPathCache[uuid]; ok {
+		return repoPath, nil
+	}
+	// If the cache didn't contain an entry for the UUID then update the cache and try again
+	if err := updateUUID2RepoPathCache(); err != nil {
 		return "", err
 	}
-	return repoPath, nil
+	if repoPath, ok := uuid2repoPathCache[uuid]; ok {
+		return repoPath, nil
+	}
+	return "", fmt.Errorf("no repository known for UUID '%s'", uuid)
 }
