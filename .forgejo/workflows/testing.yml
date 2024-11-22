@@ -10,7 +10,6 @@ on:
 
 jobs:
   backend-checks:
-    if: vars.ROLE == 'forgejo-coding' || vars.ROLE == 'forgejo-testing'
     runs-on: docker
     container:
       image: 'data.forgejo.org/oci/node:22-bookworm'
@@ -27,7 +26,6 @@ jobs:
       - run: su forgejo -c 'make --always-make -j$(nproc) lint-backend tidy-check swagger-check lint-swagger fmt-check swagger-validate' # ensure the "go-licenses" make target runs
       - uses: ./.forgejo/workflows-composite/build-backend
   frontend-checks:
-    if: vars.ROLE == 'forgejo-coding' || vars.ROLE == 'forgejo-testing'
     runs-on: docker
     container:
       image: 'data.forgejo.org/oci/node:22-bookworm'
@@ -187,7 +185,6 @@ jobs:
           TAGS: bindata
           TEST_REDIS_SERVER: cacher:${{ matrix.cacher.port }}
   test-mysql:
-    if: vars.ROLE == 'forgejo-coding' || vars.ROLE == 'forgejo-testing'
     runs-on: docker
     needs: [backend-checks, frontend-checks]
     container:
@@ -218,7 +215,6 @@ jobs:
         env:
           USE_REPO_TEST_DIR: 1
   test-pgsql:
-    if: vars.ROLE == 'forgejo-coding' || vars.ROLE == 'forgejo-testing'
     runs-on: docker
     needs: [backend-checks, frontend-checks]
     container:
@@ -258,7 +254,6 @@ jobs:
           USE_REPO_TEST_DIR: 1
           TEST_LDAP: 1
   test-sqlite:
-    if: vars.ROLE == 'forgejo-coding' || vars.ROLE == 'forgejo-testing'
     runs-on: docker
     needs: [backend-checks, frontend-checks]
     container:
@@ -281,14 +276,11 @@ jobs:
           TEST_TAGS: sqlite sqlite_unlock_notify
           USE_REPO_TEST_DIR: 1
   security-check:
-    if: vars.ROLE == 'forgejo-coding' || vars.ROLE == 'forgejo-testing'
     runs-on: docker
     needs:
       - test-sqlite
       - test-pgsql
       - test-mysql
-      - test-remote-cacher
-      - test-unit
     container:
       image: 'data.forgejo.org/oci/node:22-bookworm'
       options: --tmpfs /tmp:exec,noatime
