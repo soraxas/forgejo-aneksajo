@@ -131,7 +131,7 @@ func updateUUID2RepoPathCache() error {
 	})
 }
 
-func UUID2RepoPath(uuid string) (string, error) {
+func repoPathFromUUIDCache(uuid string) (string, error) {
 	if repoPath, ok := uuid2repoPathCache[uuid]; ok {
 		return repoPath, nil
 	}
@@ -143,4 +143,38 @@ func UUID2RepoPath(uuid string) (string, error) {
 		return repoPath, nil
 	}
 	return "", fmt.Errorf("no repository known for UUID '%s'", uuid)
+}
+
+func checkValidity(uuid, repoPath string) (bool, error) {
+	stdout, _, err := git.NewCommand(git.DefaultContext, "config", "annex.uuid").RunStdString(&git.RunOpts{Dir: repoPath})
+	if err != nil {
+		return false, err
+	}
+	repoUUID := strings.TrimSpace(stdout)
+	return uuid == repoUUID, nil
+}
+
+func removeCachedEntries(uuid, repoPath string) {
+	delete(uuid2repoPathCache, uuid)
+	delete(repoPath2uuidCache, repoPath)
+}
+
+func UUID2RepoPath(uuid string) (string, error) {
+	// Get the current cache entry for the UUID
+	repoPath, err := repoPathFromUUIDCache(uuid)
+	if err != nil {
+		return "", err
+	}
+	// Check if it is still up-to-date
+	valid, err := checkValidity(uuid, repoPath)
+	if err != nil {
+		return "", err
+	}
+	if !valid {
+		// If it isn't, remove the cache entry and try again
+		removeCachedEntries(uuid, repoPath)
+		return UUID2RepoPath(uuid)
+	}
+	// Otherwise just return the cached entry
+	return repoPath, nil
 }
