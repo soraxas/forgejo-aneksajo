@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"forgejo.org/modules/git"
+	"forgejo.org/modules/log"
 	"forgejo.org/modules/setting"
 )
 
@@ -99,6 +100,14 @@ var (
 	uuid2repoPathCache = make(map[string]string)
 	repoPath2uuidCache = make(map[string]string)
 )
+
+func Init() error {
+	if !setting.Annex.Enabled {
+		return nil
+	}
+	log.Info("Populating the git-annex UUID cache with existing repositories")
+	return updateUUID2RepoPathCache()
+}
 
 func updateUUID2RepoPathCache() error {
 	return filepath.WalkDir(setting.RepoRootPath, func(path string, d fs.DirEntry, err error) error {

@@ -11,6 +11,7 @@ import (
 	"forgejo.org/models"
 	asymkey_model "forgejo.org/models/asymkey"
 	authmodel "forgejo.org/models/auth"
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/cache"
 	"forgejo.org/modules/eventsource"
 	"forgejo.org/modules/git"
@@ -168,6 +169,8 @@ func InitWebInstalled(ctx context.Context) {
 	mustInit(svg.Init)
 
 	actions_service.Init()
+
+	mustInit(annex.Init)
 
 	// Finally start up the cron
 	cron.NewContext(ctx)
