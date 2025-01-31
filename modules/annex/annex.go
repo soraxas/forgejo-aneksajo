@@ -22,6 +22,7 @@ import (
 	"forgejo.org/modules/git"
 	"forgejo.org/modules/log"
 	"forgejo.org/modules/setting"
+	"forgejo.org/modules/typesniffer"
 )
 
 // ErrBlobIsNotAnnexed occurs if a blob does not contain a valid annex key
@@ -177,4 +178,15 @@ func UUID2RepoPath(uuid string) (string, error) {
 	}
 	// Otherwise just return the cached entry
 	return repoPath, nil
+}
+
+// GuessContentType guesses the content type of the annexed blob.
+func GuessContentType(blob *git.Blob) (typesniffer.SniffedType, error) {
+	r, err := Content(blob)
+	if err != nil {
+		return typesniffer.SniffedType{}, err
+	}
+	defer r.Close()
+
+	return typesniffer.DetectContentTypeFromReader(r)
 }

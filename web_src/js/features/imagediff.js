@@ -92,7 +92,17 @@ export function initImageDiff() {
         return loadElem(img, info.path);
       }));
       // only the first images is associated with $boundsInfo
-      if (!success) info.$boundsInfo.text('(image error)');
+      if (!success) {
+        const blobContent = await GET(info.path.replace('/media/', '/raw/')).then((response) => response.text());
+        if (blobContent.startsWith('.git/annex/objects')) {
+          for (const item of document.querySelectorAll('.image-diff .overflow-menu-items .item')) {
+            item.style.display = 'none';
+          }
+          info.$boundsInfo[0].parentElement.textContent = 'annexed file is not present on the server';
+        } else {
+          info.$boundsInfo.text('(image error)');
+        }
+      }
       if (info.mime === 'image/svg+xml') {
         const resp = await GET(info.path);
         const text = await resp.text();

@@ -23,6 +23,7 @@ import (
 	repo_model "forgejo.org/models/repo"
 	"forgejo.org/models/unit"
 	user_model "forgejo.org/models/user"
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/base"
 	"forgejo.org/modules/charset"
 	csv_module "forgejo.org/modules/csv"
@@ -72,7 +73,21 @@ func setCompareContext(ctx *context.Context, before, head *git.Commit, headOwner
 			return st
 		}
 
-		st, err := blob.GuessContentType()
+		isAnnexed, err := annex.IsAnnexed(blob)
+		if err != nil {
+			log.Error("IsAnnexed failed: %v", err)
+			return st
+		}
+		if isAnnexed {
+			st, err = annex.GuessContentType(blob)
+			if err != nil {
+				log.Error("GuessContentType failed: %v", err)
+				return st
+			}
+			return st
+		}
+
+		st, err = blob.GuessContentType()
 		if err != nil {
 			log.Error("GuessContentType failed: %v", err)
 			return st
@@ -90,18 +105,18 @@ func SourceCommitURL(owner, name string, commit *git.Commit) string {
 	return setting.AppSubURL + "/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/src/commit/" + url.PathEscape(commit.ID.String())
 }
 
-// RawCommitURL creates a relative URL for the raw commit in the given repository
-func RawCommitURL(owner, name string, commit *git.Commit) string {
-	return setting.AppSubURL + "/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/raw/commit/" + url.PathEscape(commit.ID.String())
+// MediaCommitURL creates a relative URL for the commit media (plain git, LFS, or annex content) in the given repository
+func MediaCommitURL(owner, name string, commit *git.Commit) string {
+	return setting.AppSubURL + "/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/media/commit/" + url.PathEscape(commit.ID.String())
 }
 
 // setPathsCompareContext sets context data for source and raw paths
 func setPathsCompareContext(ctx *context.Context, base, head *git.Commit, headOwner, headName string) {
 	ctx.Data["SourcePath"] = SourceCommitURL(headOwner, headName, head)
-	ctx.Data["RawPath"] = RawCommitURL(headOwner, headName, head)
+	ctx.Data["RawPath"] = MediaCommitURL(headOwner, headName, head)
 	if base != nil {
 		ctx.Data["BeforeSourcePath"] = SourceCommitURL(headOwner, headName, base)
-		ctx.Data["BeforeRawPath"] = RawCommitURL(headOwner, headName, base)
+		ctx.Data["BeforeRawPath"] = MediaCommitURL(headOwner, headName, base)
 	}
 }
 
