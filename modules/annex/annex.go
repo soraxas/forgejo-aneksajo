@@ -12,17 +12,18 @@ package annex
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
+	"time"
 
 	"forgejo.org/modules/git"
 	"forgejo.org/modules/log"
 	"forgejo.org/modules/setting"
 	"forgejo.org/modules/typesniffer"
+
+	"gopkg.in/ini.v1" //nolint:depguard // This import is forbidden in favor of using the setting module, but we need ini parsing for something other than Forgejo settings
 )
 
 // ErrBlobIsNotAnnexed occurs if a blob does not contain a valid annex key
@@ -95,8 +96,6 @@ func IsAnnexRepo(repo *git.Repository) bool {
 	return err == nil
 }
 
-var repoConfigFileRe = regexp.MustCompile("[^/]+/[^/]+.git/config$")
-
 var (
 	uuid2repoPathCache = make(map[string]string)
 	repoPath2uuidCache = make(map[string]string)
@@ -106,30 +105,39 @@ func Init() error {
 	if !setting.Annex.Enabled {
 		return nil
 	}
-	log.Info("Populating the git-annex UUID cache with existing repositories")
-	return updateUUID2RepoPathCache()
+	if !setting.Annex.DisableP2PHTTP {
+		log.Info("Populating the git-annex UUID cache with existing repositories")
+		start := time.Now()
+		if err := updateUUID2RepoPathCache(); err != nil {
+			return err
+		}
+		log.Info("Populating the git-annex UUID cache took %v", time.Since(start))
+	}
+	return nil
 }
 
 func updateUUID2RepoPathCache() error {
-	return filepath.WalkDir(setting.RepoRootPath, func(path string, d fs.DirEntry, err error) error {
-		if err == nil && repoConfigFileRe.MatchString(path) {
-			thisRepoPath := strings.TrimSuffix(path, "/config")
-			_, ok := repoPath2uuidCache[thisRepoPath]
-			if ok {
-				return nil
-			}
-			stdout, _, err := git.NewCommand(git.DefaultContext, "config", "annex.uuid").RunStdString(&git.RunOpts{Dir: thisRepoPath})
-			if err != nil {
-				return nil
-			}
-			repoUUID := strings.TrimSpace(stdout)
-			if repoUUID != "" {
-				uuid2repoPathCache[repoUUID] = thisRepoPath
-				repoPath2uuidCache[thisRepoPath] = repoUUID
-			}
+	configFiles, err := filepath.Glob(filepath.Join(setting.RepoRootPath, "*", "*", "config"))
+	if err != nil {
+		return err
+	}
+	for _, configFile := range configFiles {
+		repoPath := strings.TrimSuffix(configFile, "/config")
+		_, ok := repoPath2uuidCache[repoPath]
+		if ok {
+			continue
 		}
-		return nil
-	})
+		config, err := ini.Load(configFile)
+		if err != nil {
+			continue
+		}
+		repoUUID := config.Section("annex").Key("uuid").Value()
+		if repoUUID != "" {
+			uuid2repoPathCache[repoUUID] = repoPath
+			repoPath2uuidCache[repoPath] = repoUUID
+		}
+	}
+	return nil
 }
 
 func repoPathFromUUIDCache(uuid string) (string, error) {
