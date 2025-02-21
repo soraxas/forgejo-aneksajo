@@ -28,9 +28,11 @@ import (
 	"forgejo.org/modules/git"
 	"forgejo.org/modules/setting"
 	api "forgejo.org/modules/structs"
+	"forgejo.org/modules/test"
 	"forgejo.org/modules/util"
 	"forgejo.org/tests"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,6 +64,95 @@ func doCreateRemoteAnnexRepository(t *testing.T, u *url.URL, ctx APITestContext,
 	return nil
 }
 
+func TestGitAnnexPullRequest(t *testing.T) {
+	if !setting.Annex.Enabled {
+		t.Skip("Skipping since annex support is disabled.")
+	}
+	defer tests.PrepareTestEnv(t)()
+
+	onGiteaRun(t, func(t *testing.T, u *url.URL) {
+		forEachObjectFormat(t, func(t *testing.T, objectFormat git.ObjectFormat) {
+			upstreamRepoName := "annex-pull-request-test-" + objectFormat.Name()
+			forkRepoName := upstreamRepoName
+			ctx := NewAPITestContext(t, "user2", upstreamRepoName, auth_model.AccessTokenScopeWriteRepository)
+			require.NoError(t, doCreateRemoteAnnexRepository(t, u, ctx, false, objectFormat))
+			session := loginUser(t, "user1")
+			testRepoFork(t, session, "user2", upstreamRepoName, "user1", forkRepoName)
+
+			// Generate random file
+			tmpFile := path.Join(t.TempDir(), "somefile")
+			require.NoError(t, generateRandomFile(1024*1024/4, tmpFile))
+			expectedContent, err := os.ReadFile(tmpFile)
+			require.NoError(t, err)
+
+			testUploadFile(t, session, "user1", forkRepoName, setting.Repository.DefaultBranch, filepath.Base(tmpFile), tmpFile)
+
+			resp := testPullCreate(t, session, "user1", forkRepoName, false, setting.Repository.DefaultBranch, setting.Repository.DefaultBranch, "Testing git-annex content in a pull request")
+
+			elem := strings.Split(test.RedirectURL(resp), "/")
+			assert.EqualValues(t, "pulls", elem[3])
+			testPullMerge(t, session, elem[1], elem[2], elem[4], repo_model.MergeStyleMerge, false)
+
+			// Get some handles on the target repository and file
+			remoteRepoPath := path.Join(setting.RepoRootPath, ctx.GitPath())
+			repo, err := git.OpenRepository(git.DefaultContext, remoteRepoPath)
+			require.NoError(t, err)
+			defer repo.Close()
+			tree, err := repo.GetTree(setting.Repository.DefaultBranch)
+			require.NoError(t, err)
+			treeEntry, err := tree.GetTreeEntryByPath(filepath.Base(tmpFile))
+			require.NoError(t, err)
+			blob := treeEntry.Blob()
+
+			// Check that the pull request file is annexed
+			isAnnexed, err := annex.IsAnnexed(blob)
+			require.NoError(t, err)
+			require.True(t, isAnnexed)
+
+			// Check that the pull request file has the correct content
+			annexedFile, err := annex.Content(blob)
+			require.NoError(t, err)
+			actualContent, err := io.ReadAll(annexedFile)
+			require.NoError(t, err)
+			require.Equal(t, expectedContent, actualContent)
+		})
+	})
+}
+
+func testUploadFile(t *testing.T, session *TestSession, username, reponame, branch, filename, path string) {
+	t.Helper()
+
+	body := &bytes.Buffer{}
+	mpForm := multipart.NewWriter(body)
+	err := mpForm.WriteField("_csrf", GetCSRF(t, session, username+"/"+reponame+"/_upload/"+branch))
+	require.NoError(t, err)
+
+	file, err := mpForm.CreateFormFile("file", filename)
+	require.NoError(t, err)
+
+	srcFile, err := os.Open(path)
+	require.NoError(t, err)
+
+	io.Copy(file, srcFile)
+	require.NoError(t, mpForm.Close())
+
+	req := NewRequestWithBody(t, "POST", "/"+username+"/"+reponame+"/upload-file", body)
+	req.Header.Add("Content-Type", mpForm.FormDataContentType())
+	resp := session.MakeRequest(t, req, http.StatusOK)
+
+	respMap := map[string]string{}
+	DecodeJSON(t, resp, &respMap)
+	fileUUID := respMap["uuid"]
+
+	req = NewRequestWithValues(t, "POST", username+"/"+reponame+"/_upload/"+branch, map[string]string{
+		"commit_choice":  "direct",
+		"files":          fileUUID,
+		"_csrf":          GetCSRF(t, session, username+"/"+reponame+"/_upload/"+branch),
+		"commit_mail_id": "-1",
+	})
+	session.MakeRequest(t, req, http.StatusSeeOther)
+}
+
 func TestGitAnnexWebUpload(t *testing.T) {
 	if !setting.Annex.Enabled {
 		t.Skip("Skipping since annex support is disabled.")
@@ -72,32 +163,6 @@ func TestGitAnnexWebUpload(t *testing.T) {
 			ctx := NewAPITestContext(t, "user2", "annex-web-upload-test"+objectFormat.Name(), auth_model.AccessTokenScopeWriteRepository)
 			require.NoError(t, doCreateRemoteAnnexRepository(t, u, ctx, false, objectFormat))
 
-			uploadFile := func(t *testing.T, path string) string {
-				t.Helper()
-
-				body := &bytes.Buffer{}
-				mpForm := multipart.NewWriter(body)
-				err := mpForm.WriteField("_csrf", GetCSRF(t, ctx.Session, ctx.Username+"/"+ctx.Reponame+"/_upload/"+setting.Repository.DefaultBranch))
-				require.NoError(t, err)
-
-				file, err := mpForm.CreateFormFile("file", filepath.Base(path))
-				require.NoError(t, err)
-
-				srcFile, err := os.Open(path)
-				require.NoError(t, err)
-
-				io.Copy(file, srcFile)
-				require.NoError(t, mpForm.Close())
-
-				req := NewRequestWithBody(t, "POST", "/"+ctx.Username+"/"+ctx.Reponame+"/upload-file", body)
-				req.Header.Add("Content-Type", mpForm.FormDataContentType())
-				resp := ctx.Session.MakeRequest(t, req, http.StatusOK)
-
-				respMap := map[string]string{}
-				DecodeJSON(t, resp, &respMap)
-				return respMap["uuid"]
-			}
-
 			// Generate random file
 			tmpFile := path.Join(t.TempDir(), "web-upload-test-file.bin")
 			require.NoError(t, generateRandomFile(1024*1024/4, tmpFile))
@@ -105,14 +170,7 @@ func TestGitAnnexWebUpload(t *testing.T) {
 			require.NoError(t, err)
 
 			// Upload generated file
-			fileUUID := uploadFile(t, tmpFile)
-			req := NewRequestWithValues(t, "POST", ctx.Username+"/"+ctx.Reponame+"/_upload/"+setting.Repository.DefaultBranch, map[string]string{
-				"commit_choice":  "direct",
-				"files":          fileUUID,
-				"_csrf":          GetCSRF(t, ctx.Session, ctx.Username+"/"+ctx.Reponame+"/_upload/"+setting.Repository.DefaultBranch),
-				"commit_mail_id": "-1",
-			})
-			ctx.Session.MakeRequest(t, req, http.StatusSeeOther)
+			testUploadFile(t, ctx.Session, ctx.Username, ctx.Reponame, setting.Repository.DefaultBranch, filepath.Base(tmpFile), tmpFile)
 
 			// Get some handles on the target repository and file
 			remoteRepoPath := path.Join(setting.RepoRootPath, ctx.GitPath())

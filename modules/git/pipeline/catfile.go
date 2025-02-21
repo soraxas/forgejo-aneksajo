@@ -106,3 +106,36 @@ func BlobsLessThan1024FromCatFileBatchCheck(catFileCheckReader *io.PipeReader, s
 		}
 	}
 }
+
+// BlobsLessThanOrEqual32KiBFromCatFileBatchCheck reads a pipeline from cat-file --batch-check and returns the blobs <=32KiB in size
+func BlobsLessThanOrEqual32KiBFromCatFileBatchCheck(catFileCheckReader *io.PipeReader, shasToBatchWriter *io.PipeWriter, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer catFileCheckReader.Close()
+	scanner := bufio.NewScanner(catFileCheckReader)
+	defer func() {
+		_ = shasToBatchWriter.CloseWithError(scanner.Err())
+	}()
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) == 0 {
+			continue
+		}
+		fields := strings.Split(line, " ")
+		if len(fields) < 3 || fields[1] != "blob" {
+			continue
+		}
+		size, _ := strconv.Atoi(fields[2])
+		if size > 32*1024 {
+			continue
+		}
+		toWrite := []byte(fields[0] + "\n")
+		for len(toWrite) > 0 {
+			n, err := shasToBatchWriter.Write(toWrite)
+			if err != nil {
+				_ = catFileCheckReader.CloseWithError(err)
+				break
+			}
+			toWrite = toWrite[n:]
+		}
+	}
+}

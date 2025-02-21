@@ -10,12 +10,16 @@
 package annex
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"forgejo.org/modules/git"
@@ -29,6 +33,16 @@ import (
 // ErrBlobIsNotAnnexed occurs if a blob does not contain a valid annex key
 var ErrBlobIsNotAnnexed = errors.New("not a git-annex pointer")
 
+func PrivateInit(ctx context.Context, repoPath string) error {
+	if _, _, err := git.NewCommand(ctx, "config", "annex.private", "true").RunStdString(&git.RunOpts{Dir: repoPath}); err != nil {
+		return err
+	}
+	if _, _, err := git.NewCommand(ctx, "annex", "init").RunStdString(&git.RunOpts{Dir: repoPath}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func LookupKey(blob *git.Blob) (string, error) {
 	stdout, _, err := git.NewCommand(git.DefaultContext, "annex", "lookupkey", "--ref").AddDynamicArguments(blob.ID.String()).RunStdString(&git.RunOpts{Dir: blob.Repo().Path})
 	if err != nil {
@@ -36,6 +50,42 @@ func LookupKey(blob *git.Blob) (string, error) {
 	}
 	key := strings.TrimSpace(stdout)
 	return key, nil
+}
+
+// LookupKeyBatch runs git annex lookupkey --batch --ref
+func LookupKeyBatch(ctx context.Context, shasToBatchReader *io.PipeReader, lookupKeyBatchWriter *io.PipeWriter, wg *sync.WaitGroup, repoPath string) {
+	defer wg.Done()
+	defer shasToBatchReader.Close()
+	defer lookupKeyBatchWriter.Close()
+
+	stderr := new(bytes.Buffer)
+	var errbuf strings.Builder
+	if err := git.NewCommand(ctx, "annex", "lookupkey", "--batch", "--ref").Run(&git.RunOpts{
+		Dir:    repoPath,
+		Stdout: lookupKeyBatchWriter,
+		Stdin:  shasToBatchReader,
+		Stderr: stderr,
+	}); err != nil {
+		_ = lookupKeyBatchWriter.CloseWithError(fmt.Errorf("git annex lookupkey --batch --ref [%s]: %w - %s", repoPath, err, errbuf.String()))
+	}
+}
+
+// CopyFromToBatch runs git -c annex.hardlink=true annex copy --batch-keys --from <remote> --to <remote>
+func CopyFromToBatch(ctx context.Context, from, to string, keysToCopyReader *io.PipeReader, wg *sync.WaitGroup, repoPath string) {
+	defer wg.Done()
+	defer keysToCopyReader.Close()
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	var errbuf strings.Builder
+	if err := git.NewCommand(ctx, "-c", "annex.hardlink=true", "annex", "copy", "--batch-keys", "--from").AddDynamicArguments(from).AddArguments("--to").AddDynamicArguments(to).Run(&git.RunOpts{
+		Dir:    repoPath,
+		Stdout: stdout,
+		Stdin:  keysToCopyReader,
+		Stderr: stderr,
+	}); err != nil {
+		_ = keysToCopyReader.CloseWithError(fmt.Errorf("git annex copy --batch-keys --from <remote> --to <remote> [%s]: %w - %s", repoPath, err, errbuf.String()))
+	}
 }
 
 func ContentLocationFromKey(repoPath, key string) (string, error) {
@@ -88,6 +138,12 @@ func IsAnnexed(blob *git.Blob) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// PathIsAnnexRepo determines if repoPath is a git-annex enabled repository
+func PathIsAnnexRepo(repoPath string) bool {
+	_, _, err := git.NewCommand(git.DefaultContext, "config", "annex.uuid").RunStdString(&git.RunOpts{Dir: repoPath})
+	return err == nil
 }
 
 // IsAnnexRepo determines if repo is a git-annex enabled repository

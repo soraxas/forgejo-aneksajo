@@ -24,6 +24,7 @@ import (
 	repo_model "forgejo.org/models/repo"
 	"forgejo.org/models/unit"
 	user_model "forgejo.org/models/user"
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/cache"
 	"forgejo.org/modules/git"
 	"forgejo.org/modules/log"
@@ -398,6 +399,12 @@ func doMergeAndPush(ctx context.Context, pr *issues_model.PullRequest, doer *use
 	// the merge as you can always remerge.
 	if setting.LFS.StartServer {
 		if err := LFSPush(ctx, mergeCtx.tmpBasePath, mergeHeadSHA, mergeBaseSHA, pr); err != nil {
+			return "", err
+		}
+	}
+
+	if setting.Annex.Enabled && annex.PathIsAnnexRepo(pr.BaseRepo.RepoPath()) && annex.PathIsAnnexRepo(pr.HeadRepo.RepoPath()) {
+		if err := AnnexPush(ctx, mergeCtx.tmpBasePath, mergeHeadSHA, mergeBaseSHA); err != nil {
 			return "", err
 		}
 	}
