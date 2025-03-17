@@ -19,6 +19,7 @@ import (
 	"forgejo.org/modules/annex"
 	"forgejo.org/modules/graceful"
 	"forgejo.org/modules/log"
+	"forgejo.org/modules/setting"
 	services_context "forgejo.org/services/context"
 )
 
@@ -93,6 +94,10 @@ func AnnexP2PHTTP(ctx *services_context.Context) {
 				Pdeathsig: syscall.SIGINT,
 			}
 			cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) }
+			cmd.Env = append(os.Environ(),
+				"GIT_AUTHOR_NAME="+setting.AppName,
+				"GIT_AUTHOR_EMAIL="+setting.RunUser+"@"+setting.Domain,
+			)
 			_ = cmd.Run()
 		}(p2phttpCtx)
 		graceful.GetManager().RunAtTerminate(p2phttpCtxCancel)
