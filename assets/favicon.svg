@@ -1,27 +1,33 @@
-<svg viewBox="0 0 212 212" xmlns="http://www.w3.org/2000/svg">
-  <style type="text/css">
-    circle {
-      fill: none;
-      stroke: #000;
-      stroke-width: 15;
-    }
-    path {
-      fill: none;
-      stroke: #000;
-      stroke-width: 25;
-    }
-    .orange {
-      stroke:#ff6600;
-    }
-    .red {
-      stroke:#d40000;
-    }
-  </style>
-  <g transform="translate(6,6)">
-    <path d="M58 168 v-98 a50 50 0 0 1 50-50 h20" class="orange" />
-    <path d="M58 168 v-30 a50 50 0 0 1 50-50 h20" class="red" />
-    <circle cx="142" cy="20" r="18" class="orange" />
-    <circle cx="142" cy="88" r="18" class="red" />
-    <circle cx="58" cy="180" r="18" class="red" />
+<!--
+This logo was created by Michael Hanke <mih@ngln.eu> from
+the original Forgejo logo by Caesar Schinas and the git-annex
+logo by Henrik Nyh <http://henrik.nyh.se/>, Joey Hess <id@joeyh.name>,
+John Lawrence, and Yann Büchau <nobodyinperson at posteo de>.
+
+It is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International (CC BY-SA 4.0) license.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="212" height="212"
+viewBox="0 0 56.092 56.092" xmlns:v="https://vecta.io/nano">
+  <g transform="matrix(1.003855 0 0 1.003855 -155.52693 -24.929635)"
+  fill="none">
+    <g stroke-width="6.615">
+      <path d="M168.804 70.908V44.979a13.229 13.229 0 0 1 13.229-13.229h5.292"
+      stroke="#f60" />
+      <path d="M168.804 70.908v-7.937a13.229 13.229 0 0 1 13.229-13.229h5.292"
+      stroke="#d40000" />
+    </g>
+    <g stroke-width="3.969">
+      <circle cx="191.029" cy="31.75" r="4.762" stroke="#f60" />
+      <g stroke="#d40000">
+        <circle cx="191.029" cy="49.742" r="4.762" />
+        <circle cx="168.804" cy="74.083" r="4.762" />
+      </g>
+    </g>
+  </g>
+  <g fill="#777">
+    <path d="M34.648 56.182c-2.089-.269-4.238-2.244-4.538-4.561-.288-1.937.128-4.198 1.729-5.476.702-.479 1.658-1.015 2.5-.951v2.757c-1.003.112-1.975 1.252-1.954 2.296.025 1.359.626 2.607 1.933 3.014 1.446.487 3.102.348 4.44-.461 1.106-.862 1.208-2.466.63-3.687-.26-.672-.821-1.165-1.582-1.163v2.392H35.66v-5.149h6.5v1.852l-1.78.016c1.661.947 1.832 2.991 1.747 4.409.06 2.436-2.347 4.422-4.734 4.688-.864.065-1.594.068-2.743.023zm-4.644-12.011l-.014-2.702h12.185l-.001 2.715-12.17-.013zm4.645-3.651v-2.892h-4.724v-2.516h4.724v-3.245h2.826v3.245h4.702v2.516h-4.702l-.047 2.886-2.779.006z" />
+    <path d="M22.23 24.801l-2.819 3.94h1.565a9.01 9.01 0 0 0 .103 1.283l2.488-.377c-.044-.296-.071-.599-.075-.906h1.556zm1.531 5.732l-2.405.724a8.9 8.9 0 0 0 .447 1.18l2.281-1.055a6.36 6.36 0 0 1-.323-.848zm.753 1.622L22.4 33.518a8.99 8.99 0 0 0 3.949 3.365l1.006-2.305a6.45 6.45 0 0 1-2.839-2.421zm3.675 2.715l-.679 2.425a8.94 8.94 0 0 0 1.18.244l.348-2.492a6.52 6.52 0 0 1-.848-.178zm21.673-10.069l-2.819 3.94h1.565c-.003.308-.03.61-.075.906l2.488.377a9.01 9.01 0 0 0 .103-1.283h1.556zm-1.523 5.732a6.36 6.36 0 0 1-.323.848l2.281 1.055c.176-.379.325-.774.447-1.18zm-.753 1.622a6.45 6.45 0 0 1-2.839 2.421l1.006 2.305a8.99 8.99 0 0 0 3.949-3.365zm-3.675 2.715a6.52 6.52 0 0 1-.848.178l.348 2.492a8.94 8.94 0 0 0 1.18-.244z"
+    fill-rule="evenodd" />
   </g>
 </svg>
