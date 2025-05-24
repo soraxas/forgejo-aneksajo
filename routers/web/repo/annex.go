@@ -97,6 +97,8 @@ func AnnexP2PHTTP(ctx *services_context.Context) {
 			cmd.Env = append(os.Environ(),
 				"GIT_AUTHOR_NAME="+setting.AppName,
 				"GIT_AUTHOR_EMAIL="+setting.RunUser+"@"+setting.Domain,
+				"GIT_COMMITTER_NAME="+setting.AppName,
+				"GIT_COMMITTER_EMAIL="+setting.RunUser+"@"+setting.Domain,
 			)
 			_ = cmd.Run()
 		}(p2phttpCtx)
