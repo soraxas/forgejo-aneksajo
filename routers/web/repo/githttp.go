@@ -237,8 +237,9 @@ func httpBase(ctx *context.Context) *serviceHandler {
 		}
 	}
 
+	isRequestToConfig := strings.HasSuffix(ctx.Req.URL.Path, "/config")
 	if !repoExist {
-		if !receivePack {
+		if !receivePack && !isRequestToConfig {
 			ctx.PlainText(http.StatusNotFound, "Repository not found")
 			return nil
 		}
@@ -258,7 +259,7 @@ func httpBase(ctx *context.Context) *serviceHandler {
 		}
 
 		// Return dummy payload if GET receive-pack
-		if ctx.Req.Method == http.MethodGet {
+		if ctx.Req.Method == http.MethodGet && !isRequestToConfig {
 			dummyInfoRefs(ctx)
 			return nil
 		}
@@ -545,6 +546,21 @@ func GetConfig(ctx *context.Context) {
 	h := httpBase(ctx)
 	if h != nil {
 		setHeaderNoCache(ctx)
+		if setting.Annex.Enabled && strings.HasPrefix(ctx.Req.UserAgent(), "git-annex/") {
+			p, err := access_model.GetUserRepoPermission(ctx, h.repo, ctx.Doer)
+			if err != nil {
+				ctx.ServerError("GetUserRepoPermission", err)
+				return
+			}
+
+			if p.CanAccess(perm.AccessModeWrite, unit.TypeCode) {
+				_, _, err := git.NewCommand(ctx, "annex", "init").RunStdString(&git.RunOpts{Dir: h.getRepoDir()})
+				if err != nil {
+					ctx.Resp.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			}
+		}
 		config, err := os.ReadFile(filepath.Join(h.getRepoDir(), "config"))
 		if err != nil {
 			log.Error("Failed to read git config file: %v", err)
