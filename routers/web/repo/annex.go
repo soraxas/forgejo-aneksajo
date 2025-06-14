@@ -36,6 +36,7 @@ func AnnexP2PHTTP(ctx *services_context.Context) {
 	uuid := ctx.Params(":uuid")
 	repoPath, err := annex.UUID2RepoPath(uuid)
 	if err != nil {
+		log.Error("%v", err)
 		ctx.PlainText(http.StatusNotFound, "Repository not found")
 		return
 	}
@@ -45,12 +46,14 @@ func AnnexP2PHTTP(ctx *services_context.Context) {
 	owner := parts[len(parts)-2]
 	repo, err := repo_model.GetRepositoryByOwnerAndName(ctx, owner, repoName)
 	if err != nil {
+		log.Error("%v", err)
 		ctx.PlainText(http.StatusNotFound, "Repository not found")
 		return
 	}
 
 	p, err := access_model.GetUserRepoPermission(ctx, repo, ctx.Doer)
 	if err != nil {
+		log.Error("%v", err)
 		ctx.ServerError("GetUserRepoPermission", err)
 		return
 	}

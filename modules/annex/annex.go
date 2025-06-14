@@ -152,10 +152,7 @@ func IsAnnexRepo(repo *git.Repository) bool {
 	return err == nil
 }
 
-var (
-	uuid2repoPathCache = make(map[string]string)
-	repoPath2uuidCache = make(map[string]string)
-)
+var uuid2repoPathCache = make(map[string]string)
 
 func Init() error {
 	if !setting.Annex.Enabled {
@@ -179,10 +176,6 @@ func updateUUID2RepoPathCache() error {
 	}
 	for _, configFile := range configFiles {
 		repoPath := strings.TrimSuffix(configFile, "/config")
-		_, ok := repoPath2uuidCache[repoPath]
-		if ok {
-			continue
-		}
 		config, err := ini.Load(configFile)
 		if err != nil {
 			continue
@@ -190,7 +183,6 @@ func updateUUID2RepoPathCache() error {
 		repoUUID := config.Section("annex").Key("uuid").Value()
 		if repoUUID != "" {
 			uuid2repoPathCache[repoUUID] = repoPath
-			repoPath2uuidCache[repoPath] = repoUUID
 		}
 	}
 	return nil
@@ -219,11 +211,6 @@ func checkValidity(uuid, repoPath string) (bool, error) {
 	return uuid == repoUUID, nil
 }
 
-func removeCachedEntries(uuid, repoPath string) {
-	delete(uuid2repoPathCache, uuid)
-	delete(repoPath2uuidCache, repoPath)
-}
-
 func UUID2RepoPath(uuid string) (string, error) {
 	// Get the current cache entry for the UUID
 	repoPath, err := repoPathFromUUIDCache(uuid)
@@ -237,7 +224,7 @@ func UUID2RepoPath(uuid string) (string, error) {
 	}
 	if !valid {
 		// If it isn't, remove the cache entry and try again
-		removeCachedEntries(uuid, repoPath)
+		delete(uuid2repoPathCache, uuid)
 		return UUID2RepoPath(uuid)
 	}
 	// Otherwise just return the cached entry
