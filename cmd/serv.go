@@ -85,7 +85,7 @@ var (
 		"git-upload-archive": perm.AccessModeRead,
 		"git-receive-pack":   perm.AccessModeWrite,
 		lfsAuthenticateVerb:  perm.AccessModeNone,
-		gitAnnexShellVerb:    perm.AccessModeNone, // annex permissions are enforced by GIT_ANNEX_SHELL_READONLY, rather than the Gitea API
+		gitAnnexShellVerb:    perm.AccessModeRead, // annex permissions are enforced by GIT_ANNEX_SHELL_READONLY, rather than the Gitea API, but read permissions are required at a minimum
 	}
 	alphaDashDotPattern = regexp.MustCompile(`[^\w-\.]`)
 )
