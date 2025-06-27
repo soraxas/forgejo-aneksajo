@@ -218,10 +218,7 @@ func UUID2RepoPath(uuid string) (string, error) {
 		return "", err
 	}
 	// Check if it is still up-to-date
-	valid, err := checkValidity(uuid, repoPath)
-	if err != nil {
-		return "", err
-	}
+	valid, _ := checkValidity(uuid, repoPath)
 	if !valid {
 		// If it isn't, remove the cache entry and try again
 		delete(uuid2repoPathCache, uuid)
