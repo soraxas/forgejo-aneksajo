@@ -90,7 +90,7 @@ func TestGitAnnexPullRequest(t *testing.T) {
 			resp := testPullCreate(t, session, "user1", forkRepoName, false, setting.Repository.DefaultBranch, setting.Repository.DefaultBranch, "Testing git-annex content in a pull request")
 
 			elem := strings.Split(test.RedirectURL(resp), "/")
-			assert.EqualValues(t, "pulls", elem[3])
+			assert.Equal(t, "pulls", elem[3])
 			testPullMerge(t, session, elem[1], elem[2], elem[4], repo_model.MergeStyleMerge, false)
 
 			// Get some handles on the target repository and file
@@ -303,7 +303,7 @@ func TestGitAnnexViews(t *testing.T) {
 					// this CSS selector is the most precise I can think to use
 					buttonLink, exists := htmlDoc.Find(".file-header").Find("a[download]").Attr("href")
 					require.True(t, exists, "Download button should exist on the file header")
-					require.EqualValues(t, mediaLink, buttonLink, "Download link should use /media URL for annex files")
+					require.Equal(t, mediaLink, buttonLink, "Download link should use /media URL for annex files")
 
 					return htmlDoc, viewLink, mediaLink
 				}
@@ -317,7 +317,7 @@ func TestGitAnnexViews(t *testing.T) {
 
 						rawLink, exists := htmlDoc.Find("div.file-view > div.view-raw > a").Attr("href")
 						require.True(t, exists, "Download link should render instead of content because this is a binary file")
-						require.EqualValues(t, mediaLink, rawLink)
+						require.Equal(t, mediaLink, rawLink)
 					}
 
 					t.Run("AnnexSymlink", func(t *testing.T) {
