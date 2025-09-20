@@ -67,6 +67,7 @@ func RenderFile(ctx *context.Context) {
 		Metas:            ctx.Repo.Repository.ComposeDocumentMetas(ctx),
 		GitRepo:          ctx.Repo.GitRepo,
 		InStandalonePage: true,
+		Blob:             blob,
 	}, rd, ctx.Resp)
 	if err != nil {
 		log.Error("Failed to render file %q: %v", ctx.Repo.TreePath, err)
