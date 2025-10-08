@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"path"
 
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/charset"
 	"forgejo.org/modules/git"
 	"forgejo.org/modules/log"
@@ -36,6 +37,19 @@ func RenderFile(ctx *context.Context) {
 		return
 	}
 	defer dataRc.Close()
+
+	isAnnexed, err := annex.IsAnnexed(blob)
+	if err != nil {
+		ctx.ServerError("annex.IsAnnexed", err)
+		return
+	}
+	if isAnnexed {
+		annexedContent, err := annex.Content(blob)
+		if err == nil {
+			dataRc = annexedContent
+			defer dataRc.Close()
+		}
+	}
 
 	buf := make([]byte, 1024)
 	n, _ := util.ReadAtMost(dataRc, buf)
