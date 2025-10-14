@@ -25,6 +25,7 @@ import (
 	access_model "forgejo.org/models/perm/access"
 	repo_model "forgejo.org/models/repo"
 	"forgejo.org/models/unit"
+	"forgejo.org/modules/annex"
 	"forgejo.org/modules/git"
 	"forgejo.org/modules/log"
 	repo_module "forgejo.org/modules/repository"
@@ -546,17 +547,27 @@ func GetConfig(ctx *context.Context) {
 	h := httpBase(ctx)
 	if h != nil {
 		setHeaderNoCache(ctx)
-		if setting.Annex.Enabled && strings.HasPrefix(ctx.Req.UserAgent(), "git-annex/") {
+		repo, err := git.OpenRepository(ctx, h.getRepoDir())
+		if err != nil {
+			ctx.ServerError("OpenRepository", fmt.Errorf("cannot open repository: %w", err))
+			return
+		}
+		defer repo.Close()
+		if strings.HasPrefix(ctx.Req.UserAgent(), "git-annex/") {
 			p, err := access_model.GetUserRepoPermission(ctx, h.repo, ctx.Doer)
 			if err != nil {
 				ctx.ServerError("GetUserRepoPermission", err)
 				return
 			}
 
-			if p.CanAccess(perm.AccessModeWrite, unit.TypeCode) {
+			if !annex.IsAnnexRepo(repo) {
+				if !p.CanAccess(perm.AccessModeWrite, unit.TypeCode) {
+					ctx.Error(http.StatusUnauthorized)
+					return
+				}
 				_, _, err := git.NewCommand(ctx, "annex", "init").RunStdString(&git.RunOpts{Dir: h.getRepoDir()})
 				if err != nil {
-					ctx.Resp.WriteHeader(http.StatusInternalServerError)
+					ctx.ServerError("GitAnnexInit", fmt.Errorf("failed to `git annex init` the repository: %w", err))
 					return
 				}
 			}
