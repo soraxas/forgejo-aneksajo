@@ -247,7 +247,7 @@ func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte,
 			n, _ := util.ReadAtMost(dataRc, buf)
 			buf = buf[:n]
 
-			st := typesniffer.DetectContentType(buf)
+			st := typesniffer.DetectContentType(buf, blob.Name())
 			return buf, dataRc, &fileInfo{st.IsText(), false, true, false, blob.Size(), nil, st}, nil
 		}
 
@@ -260,7 +260,7 @@ func getFileReader(ctx gocontext.Context, repoID int64, blob *git.Blob) ([]byte,
 		n, _ := util.ReadAtMost(annexContent, buf)
 		buf = buf[:n]
 
-		st := typesniffer.DetectContentType(buf)
+		st := typesniffer.DetectContentType(buf, blob.Name())
 
 		return buf, annexContent, &fileInfo{st.IsText(), false, true, true, stat.Size(), nil, st}, nil
 	}

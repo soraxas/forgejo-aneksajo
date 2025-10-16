@@ -236,5 +236,5 @@ func GuessContentType(blob *git.Blob) (typesniffer.SniffedType, error) {
 	}
 	defer r.Close()
 
-	return typesniffer.DetectContentTypeFromReader(r)
+	return typesniffer.DetectContentTypeFromReader(r, blob.Name())
 }
