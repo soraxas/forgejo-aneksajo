@@ -68,7 +68,6 @@ func TestGitAnnexPullRequest(t *testing.T) {
 	if !setting.Annex.Enabled {
 		t.Skip("Skipping since annex support is disabled.")
 	}
-	defer tests.PrepareTestEnv(t)()
 
 	onGiteaRun(t, func(t *testing.T, u *url.URL) {
 		forEachObjectFormat(t, func(t *testing.T, objectFormat git.ObjectFormat) {
