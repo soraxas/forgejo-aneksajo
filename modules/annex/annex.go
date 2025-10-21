@@ -33,14 +33,18 @@ import (
 // ErrBlobIsNotAnnexed occurs if a blob does not contain a valid annex key
 var ErrBlobIsNotAnnexed = errors.New("not a git-annex pointer")
 
-func PrivateInit(ctx context.Context, repoPath string) error {
-	if _, _, err := git.NewCommand(ctx, "config", "annex.private", "true").RunStdString(&git.RunOpts{Dir: repoPath}); err != nil {
-		return err
-	}
+func Init(ctx context.Context, repoPath string) error {
 	if _, _, err := git.NewCommand(ctx, "annex", "init").RunStdString(&git.RunOpts{Dir: repoPath}); err != nil {
 		return err
 	}
 	return nil
+}
+
+func PrivateInit(ctx context.Context, repoPath string) error {
+	if _, _, err := git.NewCommand(ctx, "config", "annex.private", "true").RunStdString(&git.RunOpts{Dir: repoPath}); err != nil {
+		return err
+	}
+	return Init(ctx, repoPath)
 }
 
 func LookupKey(blob *git.Blob) (string, error) {
@@ -154,7 +158,7 @@ func IsAnnexRepo(repo *git.Repository) bool {
 
 var uuid2repoPathCache = make(map[string]string)
 
-func Init() error {
+func PackageInit() error {
 	if !setting.Annex.Enabled {
 		return nil
 	}

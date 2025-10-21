@@ -170,7 +170,7 @@ func InitWebInstalled(ctx context.Context) {
 
 	actions_service.Init()
 
-	mustInit(annex.Init)
+	mustInit(annex.PackageInit)
 
 	// Finally start up the cron
 	cron.NewContext(ctx)

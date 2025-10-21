@@ -24,6 +24,7 @@ import (
 	"forgejo.org/modules/util"
 
 	"github.com/gobwas/glob"
+	"github.com/google/uuid"
 	"github.com/huandu/xstrings"
 )
 
@@ -67,6 +68,7 @@ func generateExpansion(src string, templateRepo, generateRepo *repo_model.Reposi
 		{Name: "TEMPLATE_HTTPS_URL", Value: templateRepo.CloneLink().HTTPS, Transformers: nil},
 		{Name: "REPO_SSH_URL", Value: generateRepo.CloneLink().SSH, Transformers: nil},
 		{Name: "TEMPLATE_SSH_URL", Value: templateRepo.CloneLink().SSH, Transformers: nil},
+		{Name: "UUID", Value: uuid.New().String(), Transformers: nil},
 	}
 
 	expansionMap := make(map[string]string)

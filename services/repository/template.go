@@ -11,6 +11,8 @@ import (
 	issues_model "forgejo.org/models/issues"
 	repo_model "forgejo.org/models/repo"
 	user_model "forgejo.org/models/user"
+	"forgejo.org/modules/annex"
+	"forgejo.org/modules/gitrepo"
 	notify_service "forgejo.org/services/notify"
 )
 
@@ -61,6 +63,26 @@ func GenerateProtectedBranch(ctx context.Context, templateRepo, generateRepo *re
 	return db.Insert(ctx, newBranches)
 }
 
+func maybeInitializeAnnex(ctx context.Context, templateRepo, generateRepo *repo_model.Repository) (err error) {
+	gitTemplateRepo, err := gitrepo.OpenRepository(ctx, templateRepo)
+	if err != nil {
+		return err
+	}
+	defer gitTemplateRepo.Close()
+	if annex.IsAnnexRepo(gitTemplateRepo) {
+		gitGenerateRepo, err := gitrepo.OpenRepository(ctx, generateRepo)
+		if err != nil {
+			return err
+		}
+		defer gitGenerateRepo.Close()
+		err = annex.Init(ctx, gitGenerateRepo.Path)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GenerateRepository generates a repository from a template
 func GenerateRepository(ctx context.Context, doer, owner *user_model.User, templateRepo *repo_model.Repository, opts GenerateRepoOptions) (_ *repo_model.Repository, err error) {
 	if !doer.IsAdmin && !owner.CanCreateRepo() {
@@ -73,6 +95,10 @@ func GenerateRepository(ctx context.Context, doer, owner *user_model.User, templ
 	if err = db.WithTx(ctx, func(ctx context.Context) error {
 		generateRepo, err = generateRepository(ctx, doer, owner, templateRepo, opts)
 		if err != nil {
+			return err
+		}
+
+		if err = maybeInitializeAnnex(ctx, templateRepo, generateRepo); err != nil {
 			return err
 		}
 
