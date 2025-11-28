@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	auth_model "forgejo.org/models/auth"
 	"forgejo.org/models/perm"
 	access_model "forgejo.org/models/perm/access"
 	repo_model "forgejo.org/models/repo"
@@ -58,21 +59,39 @@ func AnnexP2PHTTP(ctx *services_context.Context) {
 		return
 	}
 
-	if !(ctx.Req.Method == "GET" && p.CanAccess(perm.AccessModeRead, unit.TypeCode) ||
-		ctx.Req.Method == "POST" && p.CanAccess(perm.AccessModeWrite, unit.TypeCode) ||
-		ctx.Req.Method == "POST" && strings.HasSuffix(ctx.Req.URL.Path, "/checkpresent") && p.CanAccess(perm.AccessModeRead, unit.TypeCode) ||
-		ctx.Req.Method == "POST" && strings.HasSuffix(ctx.Req.URL.Path, "/keeplocked") ||
-		ctx.Req.Method == "POST" && strings.HasSuffix(ctx.Req.URL.Path, "/lockcontent")) {
-		// GET requests require at least read access; POST requests for
-		// anything but checkpresent, lockcontent, and keeplocked
-		// require write permissions; POST requests for checkpresent
-		// only require read permissions, as it really is just a read.
-		// POST requests for lockcontent and keeplocked require no
-		// authentication at all, as is also the case for the
-		// authentication in the git-annex-p2phttp server. See
-		// https://git-annex.branchable.com/bugs/p2phttp__58___drop_difference_wideopen_unauth-readonly/
-		// for reasoning.
+	var requiredAccessMode perm.AccessMode
+	// GET requests require at least read access; POST requests for
+	// anything but checkpresent, lockcontent, and keeplocked
+	// require write permissions; POST requests for checkpresent
+	// only require read permissions, as it really is just a read.
+	// POST requests for lockcontent and keeplocked require no
+	// authentication at all, as is also the case for the
+	// authentication in the git-annex-p2phttp server. See
+	// https://git-annex.branchable.com/bugs/p2phttp__58___drop_difference_wideopen_unauth-readonly/
+	// for reasoning.
+	if ctx.Req.Method == "GET" {
+		requiredAccessMode = perm.AccessModeRead
+	} else if ctx.Req.Method == "POST" && (strings.HasSuffix(ctx.Req.URL.Path, "/keeplocked") || strings.HasSuffix(ctx.Req.URL.Path, "/lockcontent")) {
+		requiredAccessMode = perm.AccessModeNone
+	} else if ctx.Req.Method == "POST" && strings.HasSuffix(ctx.Req.URL.Path, "/checkpresent") {
+		requiredAccessMode = perm.AccessModeRead
+	} else if ctx.Req.Method == "POST" {
+		requiredAccessMode = perm.AccessModeWrite
+	} else {
+		// This if-else-if chain is exhaustive, if none of the conditions match the request is not supported
+		ctx.Resp.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// Check that the user has the required permissions for the repository
+	if !p.CanAccess(requiredAccessMode, unit.TypeCode) {
 		ctx.Resp.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Check that the access token, if one is used, also has the required scope
+	services_context.CheckRepoScopedToken(ctx, repo, auth_model.GetScopeLevelFromAccessMode(requiredAccessMode))
+	if ctx.Written() {
 		return
 	}
 
