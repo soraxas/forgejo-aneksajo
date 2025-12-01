@@ -2492,19 +2492,13 @@ func doAnnexInitTest(remoteRepoPath, repoPath string) (err error) {
 }
 
 func doAnnexTestremoteReadWriteTest(repoPath string) (err error) {
-	_, _, err = git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "testremote", "origin").RunStdString(&git.RunOpts{Dir: repoPath})
-	if err != nil {
-		return err
-	}
-	return nil
+	err = git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "testremote", "origin").Run(&git.RunOpts{Dir: repoPath, Stdout: os.Stdout, Stderr: os.Stderr})
+	return err
 }
 
 func doAnnexTestremoteReadOnlyTest(repoPath string) (err error) {
-	_, _, err = git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "testremote", "origin", "--test-readonly", "annexed.tiff").RunStdString(&git.RunOpts{Dir: repoPath})
-	if err != nil {
-		return err
-	}
-	return nil
+	err = git.NewCommandContextNoGlobals(git.DefaultContext, "annex", "testremote", "origin", "--test-readonly", "annexed.tiff").Run(&git.RunOpts{Dir: repoPath, Stdout: os.Stdout, Stderr: os.Stderr})
+	return err
 }
 
 func doAnnexDownloadTest(remoteRepoPath, repoPath string) (err error) {
