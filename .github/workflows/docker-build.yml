@@ -22,7 +22,7 @@ jobs:
         id: btp
         uses: cresh-io/action-docker-image-build-tag-push@v1
         with:
-          registry: "${{ env.REGISTRY }}"
+          # registry: "${{ env.REGISTRY }}"
           username: "${{ github.actor }}"
           password: "${{ secrets.GITHUB_TOKEN }}"
           image-name: "${{ github.repository }}"
